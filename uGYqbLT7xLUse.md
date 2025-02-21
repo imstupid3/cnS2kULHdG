@@ -93,7 +93,7 @@ Ballz:AddDropdown({
 
 # Adding Dropdown
 ```lua
-dropdown:Update()
+dropdown:Update(list[table],true)
 ```
 
 # Adding Slider
