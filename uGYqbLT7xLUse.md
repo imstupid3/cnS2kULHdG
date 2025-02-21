@@ -1,6 +1,6 @@
 # Getting Loadstring
 ```lua 
-local Hawk = loadstring(game:HttpGet("https://raw.githubusercontent.com/TheHanki/HawkHUB/main/LibSources/HawkLib.lua", true))()
+local BallzLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/imstupid3/cnS2kULHdG/refs/heads/main/LibO3KMWLd1sn"))()
 ```
 
 --------------------------------------------------------------------------
