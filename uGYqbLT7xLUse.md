@@ -91,6 +91,11 @@ Ballz:AddDropdown({
 })
 ```
 
+# Adding Dropdown
+```lua
+dropdown:Update()
+```
+
 # Adding Slider
 ```lua
 sec:AddSlider({
