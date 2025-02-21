@@ -91,7 +91,7 @@ Ballz:AddDropdown({
 })
 ```
 
-# Adding Dropdown
+# Updating dropdown list
 ```lua
 dropdown:Update(list[table],true)
 ```
