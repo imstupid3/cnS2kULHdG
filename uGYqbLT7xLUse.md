@@ -4,7 +4,7 @@
 
 # Getting Loadstring
 ```lua 
-local BallzLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/imstupid3/cnS2kULHdG/refs/heads/main/LibO3KMWLd1sn"))()
+local BallzLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/imstupid3/cnS2kULHdG/refs/heads/main/O3KMWLd1snLib"))()
 ```
 
 --------------------------------------------------------------------------
