@@ -24,7 +24,7 @@ local BallzWindow = BallzLib:CreateLibrary({
 # Creating Tabs
 ```lua
 local BallzTab = BallzWindow:CreateTab({
-  Name = "AA",
+  Name = "Tab",
   Color = Color3.fromRGB(255, 165, 0)
 })
 ```
@@ -32,7 +32,7 @@ local BallzTab = BallzWindow:CreateTab({
 # Creating Section
 ```lua
 local Ballz = BallzTab:CreateSection({
-  Name = "brub"
+  Name = "Section"
 })
 ```
 
