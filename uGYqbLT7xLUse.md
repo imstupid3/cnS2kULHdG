@@ -1,5 +1,4 @@
-# Me writing this
-
+![Example](https://raw.githubusercontent.com/imstupid3/cnS2kULHdG/refs/heads/main/Maxwell-Cat-Expressive-Ears-Alert-Curiou-PNG.png)
 
 
 # Getting Loadstring
