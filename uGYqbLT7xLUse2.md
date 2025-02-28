@@ -7,14 +7,14 @@
 
 # Getting Loadstring
 ```lua 
-local BallzLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/imstupid3/cnS2kULHdG/refs/heads/main/Lib/O3KMWLd1snLibv2"))()
+local BallzLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/imstupid3/cnS2kULHdG/refs/heads/main/Lib/O3KMWLd1snLib2"))()
 ```
 
 --------------------------------------------------------------------------
 
 # Creating Window
 ```lua 
-local BallzWindow = UI:CreateLibrary({
+local BallzWindow = BallzLib:CreateLibrary({
     Name = "Name of the library",
     Author = "marky boo",
     Transparency = 0,
