@@ -30,8 +30,7 @@ local BallzWindow = UI:CreateLibrary({
 # Creating Tabs
 ```lua
 local BallzTab = BallzWindow:CreateTab({
-  Name = "Tab",
-  Color = Color3.fromRGB(255, 165, 0)
+  Name = "Tab"
 })
 ```
 
