@@ -1,6 +1,8 @@
 # Me Right neow
 ![Mr Ballz Cat](https://raw.githubusercontent.com/imstupid3/cnS2kULHdG/refs/heads/main/Maxwell-Cat-Expressive-Ears-Alert-Curiou-PNG.png)
-[![Alt Text](https://raw.githubusercontent.com/imstupid3/cnS2kULHdG/refs/heads/main/Maxwell-Cat-Expressive-Ears-Alert-Curiou-PNG.png)]
+
+** Join on our discord server **
+https://discord.gg/n3bA2kVQ2x
 
 # Getting Loadstring
 ```lua 
