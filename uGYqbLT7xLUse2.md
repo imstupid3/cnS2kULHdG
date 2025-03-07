@@ -147,5 +147,5 @@ BallzLib:CreateNotify({
     ShowDuration = false
 })
 
--- The show duration will display the countdown in the description like "[1]"
+-- The [ShowDuration] will display the countdown in the description like "[1]"
 ```
