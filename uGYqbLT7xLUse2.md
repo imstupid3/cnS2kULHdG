@@ -14,44 +14,56 @@ local BallzLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/imst
 
 > Creating Window
 ```lua 
-local BallzWindow = BallzLib:CreateLibrary({
+local BallzWindow = UI:CreateLibrary({
     Name = "Name of the library",
-    Author = "marky boo",
+    Author = "Markk",
     Transparency = 0,
     TabColor = Color3.fromRGB(255, 165, 0),
     HasLoading = true,
-    Loading = {
-     Title = "Loading Screen",
+    LoadingConfig = {
+        Title = "My Script Loader",
+        Description = "Loading resources...",
     },
     CanDrag = true
 })
 ```
 
-# Creating Tabs
+> Creating Tabs
 ```lua
 local BallzTab = BallzWindow:CreateTab({
   Name = "Tab"
 })
 ```
 
-# Creating Section
+> Creating Section
 ```lua
 local Ballz = BallzTab:CreateSection({
   Name = "Section"
 })
 ```
 
-# Adding Label
+> Adding Label
 ```lua
 local label = Ballz:AddLabel("Labels name")
 ```
 
-# Updating Label Text
+- Updating Label Text
 ```lua
 label:Set("Hot Ballz?")
 ```
 
-# Adding Button
+> Adding Discord Button
+```lua
+Ballz:AddDiscord({
+	Name = "Button",
+	PromptText = "Join",
+	Callback = function()
+		print("Hello, World")
+	end    
+})
+```
+
+> Adding Button
 ```lua
 Ballz:AddButton({
   Name = "Button",
@@ -61,7 +73,7 @@ Ballz:AddButton({
 })
 ```
 
-# Adding Toggle
+> Adding Toggle
 ```lua
 Ballz:AddToggle({
   Name = "Toggle",
@@ -72,7 +84,12 @@ Ballz:AddToggle({
 })
 ```
 
-# Adding Textbox
+- Updating Toggle value
+```lua
+Toggle.Set(false)
+```
+
+> Adding Textbox
 ```lua
 Ballz:AddInput({
   Name = "Textbox",
@@ -84,7 +101,7 @@ Ballz:AddInput({
 })
 ```
 
-# Adding Dropdown
+> Adding Dropdown
 ```lua
 Ballz:AddDropdown({
   Name = "Dropdown",
@@ -96,14 +113,14 @@ Ballz:AddDropdown({
 })
 ```
 
-# Updating dropdown list
+- Updating dropdown list
 ```lua
 dropdown:Update(list[table],true)
 ```
 
-# Adding Slider
+> Adding Slider
 ```lua
-sec:AddSlider({
+Ballz:AddSlider({
   Name = "Slider",
   Default = 5,
   Range = {1, 100},
@@ -113,4 +130,9 @@ sec:AddSlider({
     print(Value)
   end    
 })
+```
+
+- Updating Slider Value
+```lua
+Slider.Set(10)
 ```
