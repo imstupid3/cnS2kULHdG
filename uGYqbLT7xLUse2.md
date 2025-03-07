@@ -136,3 +136,16 @@ Ballz:AddSlider({
 ```lua
 Slider.Set(10)
 ```
+
+> and for the last is notification haha
+```lua
+BallzLib:CreateNotify({
+    Name = "Test Notification",
+    Description = "This is a test message.",
+    Icon = "rbxassetid://123456789",
+    Duration = 10,
+    ShowDuration = false
+})
+
+-- The show duration will display the countdown in the description like "[1]"
+```
