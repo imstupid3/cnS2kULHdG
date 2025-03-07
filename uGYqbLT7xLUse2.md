@@ -55,11 +55,11 @@ label:Set("Hot Ballz?")
 > Adding Discord Button
 ```lua
 Ballz:AddDiscord({
-	Name = "Button",
-	PromptText = "Join",
-	Callback = function()
-		print("Hello, World")
-	end    
+  Name = "Button",
+  PromptText = "Join",
+  Callback = function()
+    print("Hello, World")
+  end    
 })
 ```
 
