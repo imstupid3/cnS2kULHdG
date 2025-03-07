@@ -1,4 +1,4 @@
-# Me Right neow
+# Me RN
 ![Mr Ballz Cat](https://raw.githubusercontent.com/imstupid3/cnS2kULHdG/refs/heads/main/Maxwell-Cat-Expressive-Ears-Alert-Curiou-PNG.png)
 
 > Mind joining on our discord server?
@@ -12,7 +12,7 @@ local BallzLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/imst
 
 --------------------------------------------------------------------------
 
-# Creating Window
+- Creating Window
 ```lua 
 local BallzWindow = BallzLib:CreateLibrary({
     Name = "Name of the library",
