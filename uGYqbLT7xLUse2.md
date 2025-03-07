@@ -5,7 +5,7 @@
 
 - https://discord.gg/n3bA2kVQ2x
 
-# Getting Loadstring
+# Calling the Loadstring
 ```lua 
 local BallzLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/imstupid3/cnS2kULHdG/refs/heads/main/Lib/O3KMWLd1snLib2"))()
 ```
@@ -46,7 +46,7 @@ local Ballz = BallzTab:CreateSection({
 local label = Ballz:AddLabel("Labels name")
 ```
 
-# Updating Label
+# Updating Label Text
 ```lua
 label:Set("Hot Ballz?")
 ```
