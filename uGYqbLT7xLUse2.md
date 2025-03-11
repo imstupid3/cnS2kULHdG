@@ -1,7 +1,7 @@
 # Me RN
 ![Mr Ballz Cat](https://raw.githubusercontent.com/imstupid3/cnS2kULHdG/refs/heads/main/Maxwell-Cat-Expressive-Ears-Alert-Curiou-PNG.png)
 
-> Mind joining on our discord server?
+> idk if yall see this but this is markk library btw Mind joining on our discord server?
 
 - https://discord.gg/n3bA2kVQ2x
 
@@ -55,7 +55,7 @@ label:Set("Hot Ballz?")
 > Adding Discord Button
 ```lua
 Ballz:AddDiscord({
-  Name = "Button",
+  Name = "Join",
   PromptText = {
     Default = "Join Server",
     TriggerText = "Copied"
