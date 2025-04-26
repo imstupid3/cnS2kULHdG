@@ -1,0 +1,2385 @@
+--[[
+	Created by mark
+	Got some source on my favourite library(rayfield)
+	This was created 4 weeks ago
+]]
+
+
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+
+local DarkFolder = "KatLib"
+local ConfigurationFolder = DarkFolder.."/Config"
+local ConfigurationExtension = ".db" --/// Database
+local CFileName = nil
+local CEnabled = false
+local http_request = syn and syn.request or http and http.request or http_request or request or httprequest
+
+local deb = false
+
+local DarkUI = {
+	Flags = {},
+	Theme= {
+		Dark = {
+	        Main = Color3.fromRGB(22, 22, 22),
+	        Second = Color3.fromRGB(32, 32, 32), -- this supposed to be for button
+	        Third = Color3.fromRGB(40, 40, 40), -- this supposed to be for Textbox
+	        TextColor = Color3.fromRGB(255, 255, 255)
+	    }
+	},
+}
+
+function randomString()
+    local length = math.random(20, 22)
+    local array = {}
+    for i = 1, length do
+        array[i] = string.char(math.random(32, 126))
+    end
+    return table.concat(array)
+end
+
+if not getgenv().AHWAHSHAHDJEKWOWOWLSPQPSKJNFN and not getgenv().AHWAHSHAHDJEKWOWOWLSPQPSKJNFNN then
+    getgenv().AHWAHSHAHDJEKWOWOWLSPQPSKJNFN = randomString()
+    getgenv().AHWAHSHAHDJEKWOWOWLSPQPSKJNFNN = randomString()
+end
+
+local rand = getgenv().AHWAHSHAHDJEKWOWOWLSPQPSKJNFN
+local randforholder = getgenv().AHWAHSHAHDJEKWOWOWLSPQPSKJNFNN
+
+if game.CoreGui:FindFirstChild(rand) then
+    game.CoreGui:FindFirstChild(rand):Destroy()
+end
+
+local function protectGui(obj)
+    if batDestroyed then
+        obj.Parent = game.CoreGui
+        return
+    end
+    if syn and syn.protect_gui then
+        syn.protect_gui(obj)
+        obj.Parent = game.CoreGui
+    elseif PROTOSMASHER_LOADED then
+        obj.Parent = get_hidden_gui()
+    else
+        obj.Parent = game.CoreGui
+    end
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = rand
+
+local parentGui = gethui and gethui() or (syn and syn.protect_gui and CoreGui)
+
+if syn and syn.protect_gui then
+	syn.protect_gui(gui)
+end
+
+if parentGui then
+	gui.Parent = parentGui	
+	for _, interface in ipairs(parentGui:GetChildren()) do
+		if interface:IsA("ScreenGui") and interface.Name == gui.Name and interface ~= gui then
+			interface.Enabled = false
+		end
+	end
+end
+
+-- will use this on next update
+local function GetUI(UINames, Properties, Parent)
+    local validUIs = {
+        UICorner = true,
+        UIStroke = true,
+        UIPadding = true,
+        UIGradient = true,
+        UIListLayout = true
+    }
+
+    if type(UINames) == "string" then
+        UINames = {UINames}
+    end
+
+    local UIElements = {}
+
+    for _, UIname in pairs(UINames) do
+        if validUIs[UIname] then
+            local UIElement = Instance.new(UIname)
+            for Property, Value in pairs(Properties) do  
+                UIElement[Property] = Value  
+            end
+            UIElement.Parent = Parent
+            
+            table.insert(UIElements, UIElement)
+        end
+    end
+    return UIElements
+end
+
+UseClipboard = function(Text) -- works both for pc and mobile
+	local useClipboard = setclipboard or toclipboard or set_clipboard or (Clipboard and Clipboard.set)
+	if useClipboard then
+		if Text ~= "" then
+			useClipboard(Text)
+		elseif UI and UI.CreateNotify then
+			UI:CreateNotify({ Name = "Interface Notification", Description = "The text you put is blank", Duration = 5, ShowDuration = true })
+		end
+	end
+end
+
+local function Round(Number, Factor)
+	local Result = math.floor(Number/Factor + (math.sign(Number) * 0.5)) * Factor
+	if Result < 0 then Result = Result + Factor end
+	return Result
+end
+
+local function AddColour(color, amount)
+    return Color3.new(
+        math.clamp(color.R + amount / 255, 0, 1),
+        math.clamp(color.G + amount / 255, 0, 1),
+        math.clamp(color.B + amount / 255, 0, 1)
+    )
+end
+
+local function MakeDraggable(DragPoint, Color)
+	pcall(function()
+		local Dragging, DragInput, MousePos, FramePos = false		
+		DragPoint.InputBegan:Connect(function(Input)
+			if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+				Dragging = true
+				MousePos = Input.Position
+				FramePos = Color.Position
+
+				Input.Changed:Connect(function()
+					if Input.UserInputState == Enum.UserInputState.End then
+						Dragging = false
+					end
+				end)
+			end
+		end)
+
+		DragPoint.InputChanged:Connect(function(Input)
+			if Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch then
+				DragInput = Input
+			end
+		end)
+
+		UserInputService.InputChanged:Connect(function(Input)
+			if Input == DragInput and Dragging then
+				local Delta = Input.Position - MousePos
+				TweenService:Create(Color, TweenInfo.new(0.05, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+					Position = UDim2.new(FramePos.X.Scale, FramePos.X.Offset + Delta.X, FramePos.Y.Scale, FramePos.Y.Offset + Delta.Y)
+				}):Play()
+			end
+		end)
+	end)
+end 
+
+local function PackColor(Color)
+	return {R = Color.R * 255, G = Color.G * 255, B = Color.B * 255}
+end
+
+local function UnpackColor(Color)
+	return Color3.fromRGB(Color.R, Color.G, Color.B)
+end
+
+local function LoadConfiguration(Configuration)
+	if typeof(Configuration) == "string" and Configuration:sub(1, 4) == "--[[" then
+		local endPos = Configuration:find("%]%]--")
+		if endPos then
+			local after = Configuration:find("\n", endPos)
+			Configuration = Configuration:sub((after or endPos) + 1)
+		end
+	end
+	
+	local success, Data = pcall(function() return HttpService:JSONDecode(Configuration) end)
+	local changed
+
+	if not success then print('i got an issue decoding the configuration file, please try to delete the file.') return end
+
+	-- Iterate through current UI elements' flags
+	for FlagName, Flag in pairs(DarkUI.Flags) do
+		local FlagValue = Data[FlagName]
+
+		if (typeof(FlagValue) == 'boolean' and FlagValue == false) or FlagValue then
+			task.spawn(function()
+				if Flag.Type == "ColorPicker" then
+					changed = true
+					Flag:Set(UnpackColor(FlagValue))
+				else
+					if (Flag.DefaultValue or Flag.CurrentKeybind or Flag.CurrentOption or Flag.Color) ~= FlagValue then
+						changed = true
+						Flag:Set(FlagValue)
+					end
+				end
+			end)
+		else
+			print("The error above may not be an issue.")
+			--RaypleldModified:Notify({Title = "Rayfield Flags", Content = "Rayfield was unable to find '"..FlagName.. "' in the save file. Check sirius.menu/discord for help.", Image = 3944688398})
+		end
+	end
+
+	return changed
+end
+
+local function SaveConfiguration()
+	if not CEnabled then return end
+
+	local Data = {}
+	for i, v in pairs(DarkUI.Flags) do
+		if v.Type == "ColorPicker" then
+			Data[i] = PackColor(v.Color)
+		else
+			if typeof(v.DefaultValue) == 'boolean' then
+				if v.DefaultValue == false then
+					Data[i] = false
+				else
+					Data[i] = v.DefaultValue or v.CurrentKeybind or v.CurrentOption or v.Color
+				end
+			else
+				Data[i] = v.DefaultValue or v.CurrentKeybind or v.CurrentOption or v.Color
+			end
+		end
+	end
+
+	if writefile then
+		local json = HttpService:JSONEncode(Data)
+		local withComment = "--[[ Saved Config for: " .. tostring(game.PlaceId) .. " ]]--\n" .. json
+		writefile(ConfigurationFolder .. "/" .. CFileName .. ConfigurationExtension, withComment)
+	end
+end
+
+function DarkUI:LoadConfiguration()
+	local config
+
+	if CEnabled then
+		local notified
+		local loaded
+
+		local success, result = pcall(function()
+			if config then
+				loaded = LoadConfiguration(config)
+				return
+			end
+
+			if isfile then
+				if isfile(ConfigurationFolder .. "/" .. CFileName .. ConfigurationExtension) then
+					loaded = LoadConfiguration(readfile(ConfigurationFolder .. "/" .. CFileName .. ConfigurationExtension))
+				end
+			else
+				notified = true
+			end
+		end)
+
+		if success and loaded and not notified then
+			DarkUI:CreateNotify({ Name = "Interface Notification", Description = "Applied previously saved configuration for this script.", Duration = 6, ShowDuration = true})
+		elseif not success and not notified then
+			DarkUI:CreateNotify({ Name = "Interface Notification", Description = "Interface counter an error before loading previous config.", Duration = 6, ShowDuration = true})
+		end
+	end
+end
+
+local notificationHandler = Instance.new("Frame")
+notificationHandler.Size = UDim2.new(0, 216, 0, 280)
+notificationHandler.Position = UDim2.new(1, -216, 0, 0)
+notificationHandler.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+notificationHandler.BorderColor3 = Color3.fromRGB(0, 0, 0)
+notificationHandler.BorderSizePixel = 1
+notificationHandler.Active = false
+notificationHandler.BackgroundTransparency = 1
+notificationHandler.Parent = gui
+
+local listing = Instance.new("UIListLayout")
+listing.Padding = UDim.new(0, 6)
+listing.HorizontalAlignment = Enum.HorizontalAlignment.Center
+listing.SortOrder = Enum.SortOrder.LayoutOrder
+listing.VerticalAlignment = Enum.VerticalAlignment.Bottom
+listing.Parent = notificationHandler
+
+function DarkUI:CreateNotify(NotifyConfig)
+    NotifyConfig.Name = NotifyConfig.Name or "Name"
+    NotifyConfig.Description = NotifyConfig.Description or "Description"
+    NotifyConfig.Duration = NotifyConfig.Duration or 5
+    NotifyConfig.ShowDuration = NotifyConfig.ShowDuration or false
+    
+    local notificationH = Instance.new("Frame")
+    notificationH.Size = UDim2.new(1, 0, 0, 0)
+    notificationH.BackgroundTransparency = 1
+    notificationH.Parent = notificationHandler
+    notificationH.AutomaticSize = Enum.AutomaticSize.Y
+    
+    local notification = Instance.new("Frame")
+    notification.Size = UDim2.new(1, 0, 0, 0)
+    notification.Position = UDim2.new(1, 0, 0, 0)
+    notification.BackgroundColor3 = DarkUI.Theme["Dark"].Main
+    notification.BorderColor3 = Color3.fromRGB(0, 0, 0)
+    notification.BorderSizePixel = 1
+    notification.Active = false
+    notification.BackgroundTransparency = 0
+    notification.Parent = notificationH
+    notification.AutomaticSize = Enum.AutomaticSize.Y
+
+    local paddingfornotify = GetUI({"UIPadding"}, {
+	    PaddingTop = UDim.new(0, 6),
+	    PaddingBottom = UDim.new(0, 12),
+	    PaddingLeft = UDim.new(0, 6),
+	    PaddingRight = UDim.new(0, 6)
+	}, notification)
+	
+	GetUI({"UICorner"}, {
+	    CornerRadius = UDim.new(0, 6)
+	}, notification)
+
+    local notificationtitle = Instance.new("TextLabel")
+    notificationtitle.Size = UDim2.new(1, 0, 0, 26)
+    notificationtitle.Position = UDim2.new(0, 0, 0, 0)
+    notificationtitle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    notificationtitle.BorderColor3 = Color3.fromRGB(0, 0, 0)
+    notificationtitle.BorderSizePixel = 1
+    notificationtitle.Text = NotifyConfig.Name
+    notificationtitle.BackgroundTransparency = 1
+    notificationtitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    notificationtitle.Font = Enum.Font.GothamSemibold
+    notificationtitle.Parent = notification
+    notificationtitle.TextSize = 14
+    notificationtitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local paddingfornotifytitle = GetUI({"UIPadding"}, {
+	    PaddingLeft = UDim.new(0, 4)
+	}, notificationtitle)
+
+    local notificationdescription = Instance.new("TextLabel")
+    notificationdescription.Size = UDim2.new(1, 0, 0, 0)
+    notificationdescription.Position = UDim2.new(0, 0, 0, 23)
+    notificationdescription.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    notificationdescription.Text = NotifyConfig.Description
+    notificationdescription.BackgroundTransparency = 1
+    notificationdescription.TextColor3 = Color3.fromRGB(111, 111, 111)
+    notificationdescription.Font = Enum.Font.GothamSemibold
+    notificationdescription.Parent = notification
+    notificationdescription.AutomaticSize = Enum.AutomaticSize.Y
+    notificationdescription.TextXAlignment = Enum.TextXAlignment.Left
+    notificationdescription.TextYAlignment = Enum.TextYAlignment.Top
+    paddingfornotifytitle[1]:Clone().Parent = notificationdescription
+    notificationdescription.TextSize = 13.5
+    notificationdescription.TextWrapped = true 
+
+	if NotifyConfig.ShowDuration then
+	    task.spawn(function()
+	        for i = NotifyConfig.Duration, 1, -1 do
+	            notificationdescription.Text = NotifyConfig.Description .. " [" .. i .. "]"
+	            task.wait(1)
+	        end
+	    end)
+	end
+     
+    TweenService:Create(notification, TweenInfo.new(1, Enum.EasingStyle.Quint), {Position = UDim2.new(0, 0, 0, 0)}):Play()
+
+    task.delay(NotifyConfig.Duration, function()
+		TweenService:Create(notificationdescription, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency = 1}):Play()	
+		task.wait(.5)
+		TweenService:Create(notificationtitle, TweenInfo.new(0.76, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency = 1}):Play()
+		task.wait(0.67)
+		TweenService:Create(notification, TweenInfo.new(1, Enum.EasingStyle.Quint), {Position = UDim2.new(1, 0, 0, 0)}):Play()
+		task.wait(0.6)
+		notificationH:Destroy()
+    end)
+end
+
+function DarkUI:CreateLibrary(WindowConfig)
+	local FirstTab = true
+	
+	if isfolder and not isfolder(DarkFolder) then
+		makefolder(DarkFolder)
+	end
+	
+	pcall(function()
+		if not WindowConfig.ConfigurationSaving.FileName then
+			WindowConfig.ConfigurationSaving.FileName = tostring(game.PlaceId)
+		end
+
+		if WindowConfig.ConfigurationSaving.Enabled == nil then
+			WindowConfig.ConfigurationSaving.Enabled = false
+		end
+
+		CFileName = WindowConfig.ConfigurationSaving.FileName
+		ConfigurationFolder = WindowConfig.ConfigurationSaving.FolderName or ConfigurationFolder
+		CEnabled = WindowConfig.ConfigurationSaving.Enabled
+
+		if WindowConfig.ConfigurationSaving.Enabled then
+			if not isfolder(ConfigurationFolder) then
+				makefolder(ConfigurationFolder)
+			end	
+		end
+	end)
+	
+	WindowConfig = WindowConfig or {}
+	WindowConfig.Name = WindowConfig.Name or "worse UI LIBRARY"
+	WindowConfig.Transparency = WindowConfig.Transparency or 0
+	WindowConfig.Theme = WindowConfig.Theme or "Dark"
+	
+	WindowConfig.LoadingConfiguration = WindowConfig.LoadingConfiguration or {}
+	WindowConfig.LoadingConfiguration.Title = WindowConfig.LoadingConfiguration.Title or "Game"
+	WindowConfig.LoadingConfiguration.Author = WindowConfig.LoadingConfiguration.Author or "By Idk"
+	WindowConfig.LoadingConfiguration.Watermark = WindowConfig.LoadingConfiguration.Watermark or false
+	
+	WindowConfig.CanDrag = WindowConfig.CanDrag or false
+	
+	local Passthrough = false
+	
+	local main = Instance.new("Frame")
+	main.Size = UDim2.new(0, 350, 0, 200)
+	main.Position = UDim2.new(0.5, 0, 0.45, 0)
+	main.AnchorPoint = Vector2.new(0.5, 0.5)
+	main.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Main
+	main.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	main.BorderSizePixel = 1
+	main.Visible = false
+	main.BackgroundTransparency = WindowConfig.Transparency
+	main.Parent = gui
+	
+	local g = GetUI({"UICorner"}, {
+		    CornerRadius = UDim.new(0, 8)
+	}, main)
+	
+	
+	local LoadingFrame = Instance.new("Frame")
+	LoadingFrame.Size = UDim2.new(0, 0, 0, 200)
+	LoadingFrame.Position = UDim2.new(0.5, 0, 0.45, 0)
+	LoadingFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+	LoadingFrame.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Main
+	LoadingFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	LoadingFrame.BorderSizePixel = 1
+	LoadingFrame.Active = true
+	LoadingFrame.BackgroundTransparency = 0
+	LoadingFrame.Parent = gui
+	
+	local Corner = Instance.new("UICorner")
+	Corner.CornerRadius = UDim.new(0, 12)
+	Corner.Parent = LoadingFrame
+
+	local LoadingTitle = Instance.new("TextLabel")
+	LoadingTitle.Size = UDim2.new(0, 160, 0, 40)
+	LoadingTitle.Position = UDim2.new(0, 10, 0, 10)
+	LoadingTitle.BackgroundTransparency = 1
+	LoadingTitle.TextSize = 19
+	LoadingTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+	LoadingTitle.Font = Enum.Font.GothamBold
+	LoadingTitle.TextXAlignment = Enum.TextXAlignment.Left
+	LoadingTitle.Parent = LoadingFrame
+
+	local Padding = Instance.new("UIPadding")
+	Padding.PaddingLeft = UDim.new(0, 5)
+	Padding.Parent = LoadingTitle
+
+	local loadingAuthor = Instance.new("TextLabel")
+	loadingAuthor.Size = UDim2.new(0, 160, 0, 20)
+	loadingAuthor.Position = UDim2.new(0, 10, 0, 40)
+	loadingAuthor.BackgroundTransparency = 1
+	loadingAuthor.TextColor3 = Color3.fromRGB(255,255,255)
+	loadingAuthor.TextSize = 13
+	loadingAuthor.Font = Enum.Font.GothamSemibold
+	loadingAuthor.TextXAlignment = Enum.TextXAlignment.Left
+	loadingAuthor.Parent = LoadingFrame
+	Padding:Clone().Parent = loadingAuthor
+
+	local LoadingLogo = Instance.new("ImageLabel")
+	LoadingLogo.Size = UDim2.new(0, 160, 1, -20)
+	LoadingLogo.Position = UDim2.new(1, -170, 0, 10)
+	LoadingLogo.ImageColor3 = Color3.fromRGB(255, 255, 255)
+	LoadingLogo.Image = "rbxassetid://123456789"
+	LoadingLogo.ScaleType = Enum.ScaleType.Stretch
+	LoadingLogo.BackgroundTransparency = 1
+	LoadingLogo.Parent = LoadingFrame
+
+	local Watermark = Instance.new("TextLabel")
+	Watermark.Size = UDim2.new(0, 100, 0, 20)
+	Watermark.Position = UDim2.new(0, 5, 1, -20)
+	Watermark.BackgroundTransparency = 1
+	Watermark.TextColor3 = Color3.fromRGB(255, 255, 255)
+	Watermark.TextSize = 13
+	Watermark.Text = "Kat Lib"
+	Watermark.TextXAlignment = Enum.TextXAlignment.Left
+	Watermark.Font = Enum.Font.GothamBold
+	Watermark.Parent = LoadingFrame
+	Padding:Clone().Parent = Watermark
+	
+	LoadingFrame.Visible = true
+	
+	LoadingTitle.TextTransparency = 1
+	loadingAuthor.TextTransparency = 1
+	LoadingLogo.ImageTransparency = 1
+	Watermark.TextTransparency = 1
+	
+	LoadingTitle.Text = WindowConfig.LoadingConfiguration.Title
+	loadingAuthor.Text = WindowConfig.LoadingConfiguration.Author
+
+	if WindowConfig.LoadingConfiguration.Watermark then
+		Watermark.TextTransparency = 0
+		else
+		Watermark.TextTransparency = 1
+	end
+	
+	TweenService:Create(LoadingFrame, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {Size = UDim2.new(0, 350, 0, 200)}):Play()
+	task.wait(0.5)
+	TweenService:Create(LoadingTitle, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {TextTransparency = 0}):Play()
+	task.wait(0.5)
+	TweenService:Create(loadingAuthor, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {TextTransparency = 0}):Play()
+	task.wait(0.5)
+	TweenService:Create(LoadingLogo, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {ImageTransparency = 0}):Play()
+	task.wait(0.5)
+	TweenService:Create(Watermark, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {TextTransparency = 0}):Play()
+	
+	
+	local topbarholder = Instance.new("Frame")
+	topbarholder.Size = UDim2.new(1, 0, 0, 40)
+	topbarholder.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	topbarholder.Active = true
+	topbarholder.BackgroundTransparency = 1
+	topbarholder.Parent = main
+	
+	if WindowConfig.CanDrag then
+  	 MakeDraggable(topbarholder, main)
+    end
+	
+	local corner2 = GetUI({"UICorner"}, {
+		    CornerRadius = UDim.new(0, 6)
+	}, topbarholder)
+	
+	local maintitle = Instance.new("TextLabel")
+	maintitle.Size = UDim2.new(1, 0, 1, 0)
+	maintitle.BackgroundTransparency = 1
+	maintitle.Text = WindowConfig.Name
+	maintitle.TextColor3 = DarkUI.Theme[WindowConfig.Theme].TextColor
+	maintitle.Font = Enum.Font.GothamSemibold
+	maintitle.TextSize = 15
+	maintitle.TextXAlignment = Enum.TextXAlignment.Left
+	maintitle.Parent = topbarholder
+	
+	local padding = GetUI({"UIPadding"}, {
+	    PaddingLeft = UDim.new(0, 12)
+	}, maintitle)
+	
+	local cornerr = Instance.new("UICorner")
+	cornerr.CornerRadius = UDim.new(0, 7)
+	cornerr.Parent = guiminizerholder
+	
+	local MinimizeBtn = Instance.new("TextButton")
+	MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
+	MinimizeBtn.Position = UDim2.new(1, -80, 0, 5)
+	MinimizeBtn.Text = "–"
+	MinimizeBtn.TextSize = 20
+	MinimizeBtn.BackgroundTransparency = 1
+	MinimizeBtn.TextColor3 = DarkUI.Theme[WindowConfig.Theme].TextColor
+	MinimizeBtn.Font = Enum.Font.GothamBold
+	MinimizeBtn.Parent = topbarholder
+	
+	
+	local minimizeholder = Instance.new("Frame")
+	minimizeholder.Size = UDim2.new(0, 50, 0, 50)
+	minimizeholder.Position = UDim2.new(0.5, 0, 0.1, 0)
+	minimizeholder.AnchorPoint = Vector2.new(0.5, 0.5)
+	minimizeholder.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Main
+	minimizeholder.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	minimizeholder.BorderSizePixel = 1
+	minimizeholder.Active = false
+	minimizeholder.Visible = false
+	minimizeholder.BackgroundTransparency = 0
+	minimizeholder.Parent = gui
+	
+	 local minimizepadding = GetUI({"UIPadding"}, {
+	    PaddingRight = UDim.new(0, 6)
+	}, minimizeholder)
+	
+	GetUI({"UICorner"}, {
+	    CornerRadius = UDim.new(0, 6)
+	}, minimizeholder)
+	
+	local minimizeit = Instance.new("ImageButton")
+	minimizeit.Size = UDim2.new(1, 0, 1, 0)
+	minimizeit.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Main
+	minimizeit.ImageColor3 = Color3.fromRGB(255, 255, 255)
+	minimizeit.Image = "rbxassetid://89653781847994"
+	minimizeit.ImageTransparency = 1
+	minimizeit.ScaleType = Enum.ScaleType.Crop
+	minimizeit.BackgroundTransparency = 1
+	minimizeit.Parent = minimizeholder
+	
+	minimizeit.MouseButton1Up:Connect(function()
+		TweenService:Create(minimizeit, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {ImageTransparency = 1}):Play()
+		wait(0.5)
+		TweenService:Create(minimizeholder, TweenInfo.new(0.8, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {Size = UDim2.new(0, 24, 0, 24)}):Play()
+		task.wait(.2)
+	    minimizeholder.Visible = false
+	    main.Visible = true
+	    wait(0.2)
+	    TweenService:Create(main, TweenInfo.new(.6, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {Size = UDim2.new(0, 456, 0, 334)}):Play()
+	end)
+	
+	MinimizeBtn.MouseButton1Up:Connect(function()
+			main.ClipsDescendants = true
+			local bruv = TweenService:Create(main, TweenInfo.new(.6, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {Size = UDim2.new(0, 346, 0, 244)})
+		    bruv:Play()
+		    wait(.6)
+		    main.Visible = false
+		    minimizeholder.Visible = true		
+		    wait(0.6)
+			TweenService:Create(minimizeit, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {ImageTransparency = 0}):Play()
+		    TweenService:Create(minimizeholder, TweenInfo.new(0.8, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {Size = UDim2.new(0, 50, 0, 50)}):Play()
+			wait(0.5)
+			TweenService:Create(minimizeholder, TweenInfo.new(0.8, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {Size = UDim2.new(0, 48, 0, 48)}):Play()
+			minimizeholder.Active = true
+			main.ClipsDescendants = false
+	end)
+	
+	UserInputService.InputBegan:Connect(function(Input)
+	    if Input.KeyCode == Enum.KeyCode.RightShift and IsOnPc then
+	        main.Visible = not main.Visible
+	        local newSize = main.Visible and UDim2.new(0, 456, 0, 334) or UDim2.new(0, 346, 0, 244)
+	        TweenService:Create(main, TweenInfo.new(.6, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {Size = newSize}):Play()
+	    end
+	end)
+	
+	
+	local Closebtn = Instance.new("TextButton")
+	Closebtn.Size = UDim2.new(0, 30, 0, 30)
+	Closebtn.Position = UDim2.new(1, -40, 0, 5)
+	Closebtn.Text = "▢"
+	Closebtn.TextSize = 18
+	Closebtn.BackgroundTransparency = 1
+	Closebtn.TextColor3 = DarkUI.Theme[WindowConfig.Theme].TextColor
+	Closebtn.Font = Enum.Font.GothamBold
+	Closebtn.Parent = topbarholder
+	
+
+	local destroymain = Instance.new("Frame")
+	destroymain.Size = UDim2.new(1, 0, 1, 0)
+	destroymain.Position = UDim2.new(0, 0, 0, 0)
+	destroymain.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	destroymain.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	destroymain.BorderSizePixel = 1
+	destroymain.Active = true
+	destroymain.ZIndex = 10
+	destroymain.Visible = false
+	destroymain.BackgroundTransparency = 1
+	destroymain.Parent = main
+	
+	local destroycorner = Instance.new("UICorner")
+	destroycorner.CornerRadius = UDim.new(0, 6)
+	destroycorner.Parent = destroymain
+	
+	local destroyholder = Instance.new("Frame")
+	destroyholder.Size = UDim2.new(0, 0, 0, 140)
+	destroyholder.Position = UDim2.new(0.5, 0, 0.5, 0)
+	destroyholder.AnchorPoint = Vector2.new(0.5, 0.5)
+	destroyholder.BackgroundColor3 = Color3.fromRGB(36,36,36)
+	destroyholder.BorderSizePixel = 1
+	destroyholder.Active = true
+	destroyholder.ZIndex = 10
+	destroyholder.BackgroundTransparency = 1
+	destroyholder.Parent = destroymain
+	destroycorner:Clone().Parent = destroyholder
+	
+	local destroytitle = Instance.new("TextLabel")
+	destroytitle.Size = UDim2.new(1, 0, 0, 32)
+	destroytitle.Position = UDim2.new(0, 0, 0, 0)
+	destroytitle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	destroytitle.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	destroytitle.BorderSizePixel = 1
+	destroytitle.Text = "Warning"
+	destroytitle.TextTransparency = 1
+	destroytitle.ZIndex = 10
+	destroytitle.BackgroundTransparency = 1
+	destroytitle.TextColor3 = Color3.fromRGB(255,255,255)
+	destroytitle.Font = Enum.Font.GothamBold
+	destroytitle.Parent = destroyholder
+	destroytitle.TextSize = 15
+	
+	local lineD = Instance.new("Frame")
+	lineD.Size = UDim2.new(1, 0, 0, 1)
+	lineD.Position = UDim2.new(0, 0, 1, 0)
+	lineD.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	lineD.BorderSizePixel = 0
+	lineD.ZIndex = 10
+	lineD.BackgroundColor3 = Color3.fromRGB(40,40,40)
+	lineD.BackgroundTransparency = 0
+	lineD.Parent = destroytitle	
+	g[1]:Clone().Parent = lineD
+	
+	local destroycancel = Instance.new("TextButton")
+	destroycancel.Size = UDim2.new(0, 32, 0, 32)
+	destroycancel.Position = UDim2.new(1, -32, 0, 0)
+	destroycancel.Text = "X"
+	destroycancel.ZIndex = 10
+	destroycancel.Visible = false
+	destroycancel.BackgroundTransparency = 1
+	destroycancel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	destroycancel.Font = Enum.Font.GothamBold
+	destroycancel.Parent = destroytitle
+	destroycancel.TextSize = 18.5
+	
+	local DestroyWarning = Instance.new("TextLabel")
+	DestroyWarning.Size = UDim2.new(1, -20, 0, 60)
+	DestroyWarning.Position = UDim2.new(0, 10, 0, 36)
+	DestroyWarning.Text = "Are you sure?\nDeleting the UI library while functions run\nmay cause errors."
+	DestroyWarning.ZIndex = 10
+	DestroyWarning.TextTransparency = 1
+	DestroyWarning.BackgroundTransparency = 1
+	DestroyWarning.TextColor3 = Color3.fromRGB(111,111,111)
+	DestroyWarning.Font = Enum.Font.GothamSemibold
+	DestroyWarning.Parent = destroyholder
+	DestroyWarning.TextSize = 11.12
+	
+	local destroyNOW = Instance.new("TextButton")
+	destroyNOW.Size = UDim2.new(0, 100, 0, 32)
+	destroyNOW.Position = UDim2.new(0, 60, 1, -44)
+	destroyNOW.BackgroundColor3 = Color3.fromRGB(40,40,40)
+	destroyNOW.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	destroyNOW.BorderSizePixel = 1
+	destroyNOW.Text = "Yes"
+	destroyNOW.ZIndex = 10
+	destroyNOW.BackgroundTransparency = 1
+	destroyNOW.TextTransparency = 1
+	destroyNOW.TextColor3 = Color3.fromRGB(255,255,255)
+	destroyNOW.Font = Enum.Font.GothamBold
+	destroyNOW.Parent = destroyholder
+	destroyNOW.TextSize = 14
+	destroycorner:Clone().Parent = destroyNOW
+	
+	Closebtn.MouseButton1Up:Connect(function()
+    	destroymain.Visible = true
+        wait(.3)
+        destroyholder.BackgroundTransparency = 0
+        TweenService:Create(destroymain, TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundTransparency = 0.3}):Play() task.wait(.2)
+        TweenService:Create(destroyholder, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0, 230, 0, 140)}):Play()
+        task.wait(.5)
+        TweenService:Create(destroytitle, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
+        TweenService:Create(destroycancel, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
+	    TweenService:Create(DestroyWarning, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
+		TweenService:Create(destroyNOW, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
+		TweenService:Create(destroyNOW, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundTransparency = 0}):Play()
+		TweenService:Create(lineD, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundTransparency = 0}):Play()
+        wait(math.random(3, 4))
+        destroycancel.Visible = true
+        destroycancel.TextTransparency = 1
+        TweenService:Create(destroycancel, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
+	end)
+	
+	destroycancel.MouseButton1Up:Connect(function()
+		destroymain.Visible = true
+		task.wait(.4)
+        TweenService:Create(destroytitle, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency = 1}):Play()
+        TweenService:Create(destroycancel, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency = 1}):Play()
+	    TweenService:Create(DestroyWarning, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency = 1}):Play()
+		TweenService:Create(destroyNOW, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency = 1}):Play()
+		TweenService:Create(destroyNOW, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundTransparency = 1}):Play()
+		TweenService:Create(lineD, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundTransparency = 1}):Play()
+		task.wait(.5)
+		TweenService:Create(destroymain, TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundTransparency = 1}):Play()
+		TweenService:Create(destroyholder, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0, 0, 0, 140)}):Play()
+        task.wait(.8)
+        destroyholder.BackgroundTransparency = 1
+        destroymain.Visible = false
+        destroycancel.Visible = false
+	end)
+	
+	destroyNOW.MouseButton1Up:Connect(function()
+    	gui:Destroy()
+	end)	
+	
+	if (WindowConfig.KeySystem) then
+		if not WindowConfig.KeySettings then
+			Passthrough = true
+			return
+		end
+
+		if isfolder and not isfolder(DarkFolder.."/Keys") then
+			makefolder(DarkFolder.."/Keys")
+		end
+
+		if typeof(WindowConfig.KeySettings.Key) == "string" then WindowConfig.KeySettings.Key = {WindowConfig.KeySettings.Key} end
+
+
+		if not WindowConfig.KeySettings.FileName then
+			WindowConfig.KeySettings.FileName = "No file name specified"
+		end
+
+		if isfile and isfile(DarkFolder.."/Keys".."/"..WindowConfig.KeySettings.FileName..ConfigurationExtension) then
+			for _, MKey in ipairs(WindowConfig.KeySettings.Key) do
+				if string.find(readfile(DarkFolder.."/Keys".."/"..WindowConfig.KeySettings.FileName..ConfigurationExtension), MKey) then
+					Passthrough = true
+				end
+			end
+		end
+
+		if not Passthrough then
+			local KeyUI = Instance.new("ScreenGui")
+			KeyUI.Name = "No bypass me angry"
+			
+			KeyUI.Enabled = true
+
+			if gethui then
+				KeyUI.Parent = gethui()
+			elseif syn and syn.protect_gui then 
+				syn.protect_gui(KeyUI)
+				KeyUI.Parent = CoreGui
+			elseif not useStudio and CoreGui:FindFirstChild("RobloxGui") then
+				KeyUI.Parent = CoreGui:FindFirstChild("RobloxGui")
+			elseif not useStudio then
+				KeyUI.Parent = CoreGui
+			end
+
+			if gethui then
+				for _, Interface in ipairs(gethui():GetChildren()) do
+					if Interface.Name == KeyUI.Name and Interface ~= KeyUI then
+						Interface.Enabled = false
+						Interface.Name = "asss"
+					end
+				end
+			end
+
+			local KeyMain = Instance.new("Frame")
+			KeyMain.Size = UDim2.new(0, 350, 0, 200)
+			KeyMain.Position = UDim2.new(0.5, 0, 0.45, 0)
+			KeyMain.AnchorPoint = Vector2.new(0.5, 0.5)
+			KeyMain.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Main
+			KeyMain.BorderColor3 = Color3.fromRGB(0, 0, 0)
+			KeyMain.BorderSizePixel = 1
+			KeyMain.BackgroundTransparency = 0
+			KeyMain.Parent = gui
+			
+			local Corner = Instance.new("UICorner")
+			Corner.CornerRadius = UDim.new(0, 12)
+			Corner.Parent = KeyMain
+			
+			local KeyTitle = Instance.new("TextLabel")
+			KeyTitle.Size = UDim2.new(0, 160, 0, 40)
+			KeyTitle.Position = UDim2.new(0, 10, 0, 10)
+			KeyTitle.BackgroundTransparency = 1
+			KeyTitle.TextSize = 19
+			KeyTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+			KeyTitle.Font = Enum.Font.GothamBold
+			KeyTitle.TextXAlignment = Enum.TextXAlignment.Left
+			KeyTitle.Parent = KeyMain
+			
+			local Padding = Instance.new("UIPadding")
+			Padding.PaddingLeft = UDim.new(0, 5)
+			Padding.Parent = KeyTitle
+			
+			local KeyAuthor = Instance.new("TextLabel")
+			KeyAuthor.Size = UDim2.new(0, 160, 0, 20)
+			KeyAuthor.Position = UDim2.new(0, 10, 0, 40)
+			KeyAuthor.BackgroundTransparency = 1
+			KeyAuthor.TextColor3 = Color3.fromRGB(255,255,255)
+			KeyAuthor.TextSize = 13
+			KeyAuthor.Font = Enum.Font.GothamSemibold
+			KeyAuthor.TextXAlignment = Enum.TextXAlignment.Left
+			KeyAuthor.Parent = KeyMain
+			Padding:Clone().Parent = KeyAuthor
+			local wata = Watermark:Clone()
+			wata.Parent = KeyMain
+			
+			local inputKey = Instance.new("TextBox")
+			inputKey.Size = UDim2.new(0, 140, 0, 36)
+			inputKey.Position = UDim2.new(1, -160, 0, 80)
+			inputKey.BackgroundColor3 = Color3.fromRGB(42,42,42)
+			inputKey.BorderColor3 = Color3.fromRGB(255, 255, 255)
+			inputKey.BorderSizePixel = 1
+			inputKey.PlaceholderText = "Key here"
+			inputKey.PlaceholderColor3 = Color3.fromRGB(105, 105, 105)
+			inputKey.Text = ""
+			inputKey.TextColor3 = Color3.fromRGB(255, 255, 255)
+			inputKey.BackgroundTransparency = 0
+			inputKey.Font = Enum.Font.SourceSans
+			inputKey.TextSize = 14
+			inputKey.Parent = KeyMain
+			Corner:Clone().Parent = inputKey
+			
+			local GetKey = Instance.new("TextButton")
+			GetKey.Size = UDim2.new(0, 120, 0, 20)
+			GetKey.Position = UDim2.new(1, -150, 0, 100)
+			GetKey.BackgroundColor3 = Color3.fromRGB(170, 170, 170)
+			GetKey.BorderColor3 = Color3.fromRGB(0, 0, 0)
+			GetKey.BorderSizePixel = 1
+			GetKey.Text = "Get Key" -- 130
+			GetKey.BackgroundTransparency = 1
+			GetKey.TextColor3 = Color3.fromRGB(255,255,255)
+			GetKey.Font = Enum.Font.GothamBold
+			GetKey.Parent = KeyMain
+			GetKey.TextSize = 12
+			
+			local ChoicesFromLink = Instance.new("Frame")
+			ChoicesFromLink.Size = UDim2.new(0, 140, 0, 0)
+			ChoicesFromLink.Position = UDim2.new(1, -160, 0.7, 0)
+			ChoicesFromLink.AnchorPoint = Vector2.new(0, 1)
+			ChoicesFromLink.BackgroundColor3 = Color3.fromRGB(38, 38, 38)
+			ChoicesFromLink.Parent = KeyMain
+			ChoicesFromLink.ClipsDescendants = true
+			Corner:Clone().Parent = ChoicesFromLink
+			
+			local buttonCount = 0
+			local function addButtonForScroll(type, id, setclipbaord)
+				buttonCount += 1 -- increase every time you create a new button
+				local Frame = Instance.new("Frame")
+				Frame.Size = UDim2.new(1, 0, 0.5, 0)
+				Frame.Position = UDim2.new(0, 0, (buttonCount - 1) * 0.5, 0)
+				Frame.BackgroundTransparency = 1
+				Frame.Parent = ChoicesFromLink
+			
+				local Copiedbutton = Instance.new("TextButton")
+				Copiedbutton.Size = UDim2.new(1, 0, 1, 0)
+				Copiedbutton.BackgroundTransparency = 0.2
+				Copiedbutton.TextTransparency = 1
+				Copiedbutton.Font = Enum.Font.GothamSemibold
+				Copiedbutton.TextSize = 13
+				Copiedbutton.TextXAlignment = Enum.TextXAlignment.Left
+				Copiedbutton.Parent = Frame
+				Corner:Clone().Parent = Copiedbutton
+				local Padding = Instance.new("UIPadding")
+				Padding.PaddingLeft = UDim.new(0, 40)
+				Padding.Parent = Copiedbutton
+			
+				local imageButton = Instance.new("ImageButton")
+				imageButton.Size = UDim2.new(1, 0, 1, 0)
+				imageButton.Image = "rbxassetid://"..id
+				imageButton.BackgroundTransparency = 1
+				imageButton.ScaleType = Enum.ScaleType.Crop
+				imageButton.Parent = Frame
+			
+				if type == "Linkvertise" then
+					Copiedbutton.BackgroundColor3 = Color3.fromRGB(204, 85, 0)
+					Copiedbutton.Text = "Linkvertise"
+				elseif type == "LootLab" then
+					Copiedbutton.BackgroundColor3 = Color3.fromRGB(75, 0, 130)
+					Copiedbutton.Text = "LootLab"
+				end
+			
+				Copiedbutton.BackgroundTransparency = 0
+				Copiedbutton.TextColor3 = Color3.fromRGB(255,255,255)
+				Copiedbutton.TextSize = 12
+			
+				Copiedbutton.MouseButton1Click:Connect(function()
+					UseClipboard(setclipbaord)
+				end)
+			
+				return {
+					Button = Copiedbutton,
+					Image = imageButton
+				}
+			end
+			
+			local Linkvertise = addButtonForScroll("Linkvertise", "105482264370711", WindowConfig.KeySettings.GetKeyFrom.Linkvertise)
+			
+			local lootlab = addButtonForScroll("LootLab", "116068433086667", WindowConfig.KeySettings.GetKeyFrom.LootLab)
+			
+			KeyTitle.Text = WindowConfig.KeySettings.Title or Settings.Name
+			KeyAuthor.Text = WindowConfig.KeySettings.Author or "Key System"
+
+			KeyTitle.TextTransparency = 1
+			KeyAuthor.TextTransparency = 1
+			wata.TextTransparency = 1
+			inputKey.BackgroundTransparency = 1
+			inputKey.TextTransparency = 1
+			GetKey.TextTransparency = 1
+			
+			ChoicesFromLink.BackgroundTransparency = 1
+
+	
+			task.wait(0.05)
+			TweenService:Create(KeyTitle, TweenInfo.new(0.4, Enum.EasingStyle.Exponential), {TextTransparency = 0}):Play()
+			TweenService:Create(KeyAuthor, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {TextTransparency = 0}):Play()
+			TweenService:Create(wata, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {TextTransparency = 0}):Play()
+			task.wait(0.05)
+			TweenService:Create(inputKey, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {BackgroundTransparency = 0}):Play()
+			TweenService:Create(inputKey, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {TextTransparency = 0}):Play()
+			TweenService:Create(inputKey, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {Position = UDim2.new(1, -160, 0, 60)}):Play()
+			task.wait(0.05)
+			TweenService:Create(GetKey, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {TextTransparency = 0}):Play()
+
+			inputKey.FocusLost:Connect(function()
+				if #inputKey.Text == 0 then return end
+				local KeyFound = false
+				local FoundKey = ''
+				for _, MKey in ipairs(WindowConfig.KeySettings.Key) do
+					if inputKey.Text == MKey then
+						KeyFound = true
+						FoundKey = MKey
+					end
+				end
+			
+				if KeyFound then 
+					TweenService:Create(KeyMain, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {BackgroundTransparency = 1}):Play()
+					TweenService:Create(KeyTitle, TweenInfo.new(0.4, Enum.EasingStyle.Exponential), {TextTransparency = 1}):Play()
+					TweenService:Create(KeyAuthor, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {TextTransparency = 1}):Play()
+					TweenService:Create(inputKey, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {BackgroundTransparency = 1}):Play()
+					TweenService:Create(inputKey, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {TextTransparency = 1}):Play()
+					TweenService:Create(GetKey, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {TextTransparency = 1}):Play()
+					task.wait(0.51)
+					Passthrough = true
+					KeyMain.Visible = false
+					if WindowConfig.KeySettings.SaveKey then
+						if writefile then
+							writefile(DarkFolder.."/Keys".."/"..WindowConfig.KeySettings.FileName..ConfigurationExtension, FoundKey)
+						end
+						DarkUI:CreateNotify({Name = "Key System", Description = "The key for this script has been saved."})
+					end
+				else
+					TweenService:Create(inputKey, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {Size = UDim2.new(0, 140, 0, 34)}):Play()
+					DarkUI:CreateNotify({Name = "Key System", Description = "The key you entered was incorrect!"})
+					task.wait(.4)
+					TweenService:Create(inputKey, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {Size = UDim2.new(0, 140, 0, 36)}):Play()
+				end
+			end)
+			
+			local LinkMinimised = false
+			GetKey.MouseButton1Click:Connect(function()
+				if not LinkMinimised then
+					LinkMinimised = true
+					TweenService:Create(GetKey, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {TextTransparency = 1}):Play()
+					TweenService:Create(ChoicesFromLink, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {BackgroundTransparency = 0}):Play()
+					TweenService:Create(ChoicesFromLink, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {Size = UDim2.new(0, 140, 0, 80)}):Play()			
+					task.wait(.06)
+					TweenService:Create(GetKey, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {Position = UDim2.new(1, -150, 0, 140)}):Play()
+					task.wait(.3)
+					TweenService:Create(GetKey, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {TextTransparency = 0}):Play()
+					GetKey.Text = "Click here again."
+					task.wait(.3)
+					TweenService:Create(lootlab.Image, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {Size = UDim2.new(0, 40, 1, 0)}):Play()
+					task.wait(.3)
+					TweenService:Create(lootlab.Button, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {TextTransparency = 0}):Play()
+					task.wait(.3)
+					TweenService:Create(Linkvertise.Image, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {Size = UDim2.new(0, 40, 1, 0)}):Play()
+					task.wait(.3)
+					TweenService:Create(Linkvertise.Button, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {TextTransparency = 0}):Play()
+				else
+					LinkMinimised = false
+					TweenService:Create(ChoicesFromLink, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {BackgroundTransparency = 1}):Play()
+					TweenService:Create(ChoicesFromLink, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {Size = UDim2.new(0, 140, 0, 0)}):Play()
+					task.wait(.4)
+					TweenService:Create(GetKey, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {TextTransparency = 1}):Play()
+					TweenService:Create(GetKey, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {Position = UDim2.new(1, -150, 0, 100)}):Play()
+					task.wait(.4)
+					TweenService:Create(GetKey, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {TextTransparency = 0}):Play()
+					GetKey.Text = "Get Key"
+					task.wait(.4)
+					Linkvertise.Button.TextTransparency = 1
+					Linkvertise.Image.Size = UDim2.new(1, 0, 1, 0)
+					lootlab.Button.TextTransparency = 1
+					lootlab.Image.Size = UDim2.new(1, 0, 1, 0)
+				end
+			end)
+		else
+			Passthrough = true
+		end
+	end
+	if WindowConfig.KeySystem then
+		repeat task.wait() until Passthrough
+	end
+	
+	
+	
+	task.wait(1)
+	TweenService:Create(LoadingTitle, TweenInfo.new(0.7, Enum.EasingStyle.Exponential), {TextTransparency = 1}):Play()
+	task.wait(0.5)
+	TweenService:Create(loadingAuthor, TweenInfo.new(0.7, Enum.EasingStyle.Exponential), {TextTransparency = 1}):Play()
+	task.wait(0.5)
+	TweenService:Create(LoadingLogo, TweenInfo.new(0.7, Enum.EasingStyle.Exponential), {ImageTransparency = 1}):Play()
+	task.wait(0.5)
+	TweenService:Create(Watermark, TweenInfo.new(0.7, Enum.EasingStyle.Exponential), {TextTransparency = 1}):Play()
+	task.wait(0.5)
+	TweenService:Create(LoadingFrame, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {Size = UDim2.new(0, 0, 0, 200)}):Play()
+	task.wait(0.5)
+	main.Visible = true
+	LoadingFrame:Destroy()
+	TweenService:Create(main, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {Size = UDim2.new(0, 460, 0, 340)}):Play()
+	
+	local tabholder = Instance.new("Frame")
+	tabholder.Size = UDim2.new(0, 115, 1, -40)
+	tabholder.Position = UDim2.new(0, 5, 0, 40)
+	tabholder.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Main
+	tabholder.Parent = main
+	tabholder.BackgroundTransparency = WindowConfig.Transparency
+	corner2[1]:Clone().Parent = tabholder
+	
+	local autoscroll = Instance.new("TextButton")
+	autoscroll.Size = UDim2.new(1, -40, 0, 20)
+	autoscroll.Position = UDim2.new(0, 20, 1, -20)
+	autoscroll.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second
+	autoscroll.Text = "▼"
+	autoscroll.ZIndex = 20
+	autoscroll.TextColor3 = DarkUI.Theme[WindowConfig.Theme].TextColor
+	autoscroll.TextTransparency = 0.4
+	autoscroll.Font = Enum.Font.GothamBold
+	autoscroll.BackgroundTransparency = 0.3
+	autoscroll.Parent = tabholder
+	autoscroll.TextSize = 18
+	GetUI({"UICorner"}, {
+		    CornerRadius = UDim.new(0, 12)
+	}, autoscroll)
+	
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.Size = UDim2.new(1, 0, 1, 0)
+	scroll.ScrollBarThickness = 1
+	scroll.BackgroundTransparency = 1
+	scroll.Parent = tabholder
+	corner2[1]:Clone().Parent = scroll
+	
+	local list = GetUI({"UIListLayout"}, {
+	    SortOrder = Enum.SortOrder.LayoutOrder,
+		Padding = UDim.new(0, 5),
+		HorizontalAlignment = Enum.HorizontalAlignment.Center
+	}, scroll)
+		
+	list[1]:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	    scroll.CanvasSize = UDim2.new(0, 0, 0, list[1].AbsoluteContentSize.Y)
+	
+	    local canScroll = list[1].AbsoluteContentSize.Y > scroll.AbsoluteSize.Y
+	    autoscroll.Visible = canScroll
+	end)
+	
+	autoscroll.MouseButton1Click:Connect(function()
+		local targetY = list[1].AbsoluteContentSize.Y
+		local tween = TweenService:Create(scroll, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CanvasPosition = Vector2.new(0, targetY)})
+		tween:Play()
+	end)
+	
+	local blank = Instance.new("Frame")
+	blank.Size = UDim2.new(1, 0, 0, 2)
+	blank.BackgroundTransparency = 1
+	blank.Parent = scroll
+	
+	local tabholderProlly = Instance.new("Folder")
+	tabholderProlly.Name = randomString()
+	tabholderProlly.Parent = main
+
+	local WindowFunctions = {}
+
+	function WindowFunctions:CreateTab(Name)
+	
+		local tab1 = Instance.new("Frame")
+		tab1.Size = UDim2.new(1, -4, 0, 30)
+		tab1.BackgroundTransparency = 1
+		tab1.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second
+		tab1.Parent = scroll
+		
+		GetUI({"UICorner"}, {
+		    CornerRadius = UDim.new(0, 6)
+		}, tab1)
+		
+		local tabname = Instance.new("TextButton")
+		tabname.Size = UDim2.new(1, 0, 1, 0)
+		tabname.Text = Name
+		tabname.TextColor3 = DarkUI.Theme[WindowConfig.Theme].TextColor
+		tabname.TextTransparency = 0.4
+		tabname.Font = Enum.Font.GothamSemibold
+		tabname.BackgroundTransparency = 1
+		tabname.Parent = tab1
+		tabname.TextSize = 13
+		tabname.TextXAlignment = Enum.TextXAlignment.Left
+		
+		GetUI({"UICorner"}, {
+		    CornerRadius = UDim.new(0, 10)
+		}, tabline)
+		
+		local padding2 = GetUI({"UIPadding"}, {
+		    PaddingLeft = UDim.new(0, 6)
+		}, tabname)
+	
+		local Container = Instance.new("ScrollingFrame")
+		Container.Size = UDim2.new(1, -130, 1, -55)
+		Container.Position = UDim2.new(0, 125, 0, 50)
+		Container.BackgroundTransparency = 1
+		Container.Name = randforholder
+		Container.ScrollBarThickness = 0
+		Container.Visible = false
+		Container.Parent = tabholderProlly
+		
+		local list2 = GetUI({"UIListLayout"}, {
+		    SortOrder = Enum.SortOrder.LayoutOrder,
+		    Padding = UDim.new(0, 5),
+		    HorizontalAlignment = Enum.HorizontalAlignment.Center
+		}, Container)
+		
+		list2[1]:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		    Container.CanvasSize = UDim2.new(0, 0, 0, list2[1].AbsoluteContentSize.Y)
+		end)
+	
+		if FirstTab then
+			FirstTab = false
+			tabname.TextTransparency = 0
+			tabname.Font = Enum.Font.GothamBold
+			Container.Visible = true
+			tab1.BackgroundTransparency = 0
+		end    
+	
+		tabname.MouseButton1Click:Connect(function()
+		    for _, Tab in next, scroll:GetChildren() do
+		        if Tab:IsA("Frame") then
+		            local Button = Tab:FindFirstChildOfClass("TextButton")
+		            if Button then
+		                Button.Font = Enum.Font.GothamSemibold
+		                TweenService:Create(Button, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency = 0.4}):Play()
+						TweenService:Create(Tab, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundTransparency = 1}):Play()
+		            end    
+		        end
+		    end
+		
+		    for _, ItemContainer in next, tabholderProlly:GetChildren() do
+		        if ItemContainer.Name == randforholder then
+		            ItemContainer.Visible = false
+		        end    
+		    end  
+		
+		    TweenService:Create(tabname, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
+		    tabname.Font = Enum.Font.GothamBold
+		    Container.Visible = true
+			TweenService:Create(tab1, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundTransparency = 0}):Play()
+		end)
+	
+	local ElementsFunctions = {} --/// will hold every elements useful	
+	
+	function ElementsFunctions:AddElement(props, Type)
+	    Type = Type or props.Type
+	
+	    if Type == "Label" then
+	        local LabelHolder = Instance.new("Frame")
+	        LabelHolder.Size = UDim2.new(1, -4, 0, 34)
+	        LabelHolder.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second
+	        LabelHolder.BorderSizePixel = 0
+	        LabelHolder.Parent = Container
+	        corner2[1]:Clone().Parent = LabelHolder
+	
+	        local LabelTitle = Instance.new("TextLabel")
+	        LabelTitle.Size = UDim2.new(1, 0, 1, 0)
+	        LabelTitle.Position = UDim2.new(0, 0, 0, 0)
+	        LabelTitle.BackgroundTransparency = 1
+	        LabelTitle.Text = props.title or "Empty Label"
+	        LabelTitle.TextColor3 = props.textcolor or DarkUI.Theme[WindowConfig.Theme].TextColor
+	        LabelTitle.Font = Enum.Font.GothamSemibold
+	        LabelTitle.TextSize = 13
+	        LabelTitle.TextXAlignment = Enum.TextXAlignment.Left
+	        LabelTitle.Parent = LabelHolder
+	        padding[1]:Clone().Parent = LabelTitle
+	
+	        local LabelChange = {}
+	        function LabelChange:Set(NewTitle, NewColour)
+	            LabelTitle.Text = NewTitle
+	            LabelTitle.TextColor3 = NewColour
+	        end
+	        return LabelChange
+	
+	    elseif Type == "Paragraph" then
+	        local paragraphholder = Instance.new("Frame")
+	        paragraphholder.Size = UDim2.new(1, -4, 0, 38)
+	        paragraphholder.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second
+	        paragraphholder.BorderSizePixel = 0
+	        paragraphholder.Parent = Container
+	        paragraphholder.AutomaticSize = Enum.AutomaticSize.Y
+	        corner2[1]:Clone().Parent = paragraphholder
+	
+	        GetUI({"UIPadding"}, {
+	            PaddingBottom = UDim.new(0, 8)
+	        }, paragraphholder)
+	
+	        local paragraphtitle = Instance.new("TextLabel")
+	        paragraphtitle.Size = UDim2.new(1, 0, 0, 28)
+	        paragraphtitle.Position = UDim2.new(0, 0, 0, 0)
+	        paragraphtitle.BackgroundTransparency = 1
+	        paragraphtitle.Text = props.title or "Empty Paragraph"
+	        paragraphtitle.TextColor3 = DarkUI.Theme[WindowConfig.Theme].TextColor
+	        paragraphtitle.Font = Enum.Font.GothamSemibold
+	        paragraphtitle.TextSize = 13
+	        paragraphtitle.TextXAlignment = Enum.TextXAlignment.Left
+	        paragraphtitle.Parent = paragraphholder
+	        padding[1]:Clone().Parent = paragraphtitle
+	
+	        local paragraphdescription = Instance.new("TextLabel")
+	        paragraphdescription.Size = UDim2.new(1, 0, 0, 10)
+	        paragraphdescription.Position = UDim2.new(0, 0, 0, 25)
+	        paragraphdescription.BackgroundTransparency = 1
+	        paragraphdescription.Text = props.description or "No description provided."
+	        paragraphdescription.TextColor3 = Color3.fromRGB(90, 90, 90)
+	        paragraphdescription.Font = Enum.Font.GothamSemibold
+	        paragraphdescription.TextSize = 12.3
+	        paragraphdescription.TextWrapped = true
+	        paragraphdescription.TextXAlignment = Enum.TextXAlignment.Left
+	        paragraphdescription.TextYAlignment = Enum.TextYAlignment.Top
+	        paragraphdescription.Parent = paragraphholder
+	        paragraphdescription.AutomaticSize = Enum.AutomaticSize.Y
+	        GetUI({"UIPadding"}, {
+	            PaddingLeft = UDim.new(0, 12),
+	            PaddingRight = UDim.new(0, 8),
+	        }, paragraphdescription)
+	
+	        local ParagraphChange = {}
+	        function ParagraphChange:Set(NewTitle, NewContent)
+	            paragraphtitle.Text = NewTitle
+	            paragraphdescription.Text = NewContent
+	        end
+	        return ParagraphChange
+
+	elseif Type == "Button" then
+		local buttonholder = Instance.new("Frame")
+		buttonholder.Size = UDim2.new(1, -4, 0, 34)
+		buttonholder.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second
+		buttonholder.Parent = Container
+		corner2[1]:Clone().Parent = buttonholder
+	
+		local button = Instance.new("TextButton")
+		button.Size = UDim2.new(1, 0, 1, 0)
+		button.Text = props.Name
+		button.AutoButtonColor = false
+		button.BackgroundTransparency = 1
+		button.TextColor3 = DarkUI.Theme[WindowConfig.Theme].TextColor
+		button.Font = Enum.Font.GothamSemibold
+		button.Parent = buttonholder
+		button.Active = false
+		button.TextXAlignment = Enum.TextXAlignment.Left
+		padding[1]:Clone().Parent = button
+		button.TextSize = 13
+		
+		local buttonicon = Instance.new("ImageLabel")
+		buttonicon.Size = UDim2.new(0, 18, 0, 18)
+		buttonicon.Position = UDim2.new(1, -29, 0, 8)
+		buttonicon.BackgroundTransparency = 1
+		buttonicon.ImageColor3 = DarkUI.Theme[WindowConfig.Theme].TextColor
+		buttonicon.Active = false
+		buttonicon.Image = "rbxassetid://12804017021"
+		buttonicon.Parent = buttonholder
+		
+		button.MouseEnter:Connect(function()
+		    TweenService:Create(buttonholder, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Second, 5)}):Play()
+		end)
+		
+		button.MouseLeave:Connect(function()
+		    TweenService:Create(buttonholder, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second}):Play()
+		end)
+		
+		button.MouseButton1Click:Connect(function()
+			local Success, Response = pcall(props.Callback)
+			if not Success then
+				TweenService:Create(buttonholder, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second}):Play()
+			else
+				TweenService:Create(buttonholder, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Second, 5)}):Play()
+				task.wait(.4)
+				TweenService:Create(buttonholder, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second}):Play()
+			end
+		end)
+		
+		local ButtonValue = {}
+		function ButtonValue:Set(NewButton)
+			button.Text = NewButton
+		end
+		return ButtonValue
+	
+	elseif Type == "Toggle" then
+	    local toggleholder = Instance.new("Frame")
+	    toggleholder.Size = UDim2.new(1, -4, 0, 36)
+	    toggleholder.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second
+	    toggleholder.BorderSizePixel = 0
+	    toggleholder.Parent = Container
+	    corner2[1]:Clone().Parent = toggleholder
+	
+	    local toggletitle = Instance.new("TextLabel")
+	    toggletitle.Size = UDim2.new(1, 0, 1, 0)
+	    toggletitle.Text = props.Name
+	    toggletitle.BackgroundTransparency = 1
+	    toggletitle.TextColor3 = DarkUI.Theme[WindowConfig.Theme].TextColor
+	    toggletitle.Font = Enum.Font.GothamSemibold
+	    toggletitle.TextXAlignment = Enum.TextXAlignment.Left
+	    toggletitle.Parent = toggleholder
+	    padding[1]:Clone().Parent = toggletitle
+	    toggletitle.TextSize = 13
+	
+		local toggle = Instance.new("ImageButton")
+	    toggle.Size = UDim2.new(0, 25, 0, 25)
+	    toggle.Position = UDim2.new(1, -35, 0, 6)
+	    toggle.BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Second, 8)
+	    toggle.Image = "rbxassetid://110718870105693"
+	    toggle.Parent = toggleholder
+	    toggle.BackgroundTransparency = 0
+	    local togglecorner = Instance.new("UICorner", toggle)
+	    togglecorner.CornerRadius = UDim.new(0, 3)
+	
+		if props.DefaultValue == true then
+			TweenService:Create(toggle, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {ImageTransparency = 0}):Play()
+		else
+			TweenService:Create(toggle, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {ImageTransparency = 1}):Play()
+		end
+	
+	    toggle.MouseEnter:Connect(function()
+	        TweenService:Create(toggleholder, TweenInfo.new(0.2), {BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Second, 5)}):Play()
+	    end)
+	
+	    toggle.MouseLeave:Connect(function()
+	        TweenService:Create(toggleholder, TweenInfo.new(0.2), {BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second}):Play()
+	    end)
+	
+	    toggle.MouseButton1Click:Connect(function()
+			if props.DefaultValue == true then
+				props.DefaultValue = false
+				TweenService:Create(toggle, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {ImageTransparency = 1}):Play()
+			else
+				props.DefaultValue = true
+				TweenService:Create(toggle, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {ImageTransparency = 0}):Play()
+			end
+			
+			local s, r = pcall(function()
+				props.Callback(props.DefaultValue)
+			end)
+			
+			if not s then 
+				TweenService:Create(toggleholder, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {BackgroundColor3 = Color3.fromRGB(120, 0, 0)}):Play()
+				TweenService:Create(toggle, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {BackgroundColor3 = Color3.fromRGB(150, 0, 0)}):Play()
+				
+				toggletitle = "Callback Error"
+				task.wait(0.5)
+				toggletitle = props.Name
+				TweenService:Create(toggleholder, TweenInfo.new(0.2), {BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second}):Play()
+				TweenService:Create(toggle, TweenInfo.new(0.2), {BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Second, 8)}):Play()
+			end
+			SaveConfiguration()
+		end)
+	
+		function props:Set(NewToggleValue)
+		    if NewToggleValue == true then
+				props.DefaultValue = false
+				TweenService:Create(toggle, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {ImageTransparency = 1}):Play()
+			else
+				props.DefaultValue = true
+				TweenService:Create(toggle, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {ImageTransparency = 0}):Play()
+			end
+			
+			local s, r = pcall(function()
+				props.Callback(props.DefaultValue)
+			end)
+			
+			if not s then 
+				TweenService:Create(toggleholder, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {BackgroundColor3 = Color3.fromRGB(120, 0, 0)}):Play()
+				TweenService:Create(toggleholder, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {BackgroundColor3 = Color3.fromRGB(150, 0, 0)}):Play()
+				
+				toggletitle = "Callback Error"
+				task.wait(0.5)
+				toggletitle = props.Name
+				TweenService:Create(toggleholder, TweenInfo.new(0.2), {BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second}):Play()
+				TweenService:Create(toggle, TweenInfo.new(0.2), {BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Second, 8)}):Play()
+			end
+			SaveConfiguration()
+		end
+		
+		if WindowConfig.ConfigurationSaving then
+			if WindowConfig.ConfigurationSaving.Enabled and props.Flag then
+				DarkUI.Flags[props.Flag] = props
+			end
+		end
+		
+		return props
+	
+	elseif Type == "Input" then
+		local textboxholder = Instance.new("Frame")
+		textboxholder.Size = UDim2.new(1, -4, 0, 36)
+		textboxholder.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second
+		textboxholder.BackgroundTransparency = 0
+		textboxholder.Parent = Container
+		corner2[1]:Clone().Parent = textboxholder
+		
+		local textboxtitle = Instance.new("TextLabel")
+		textboxtitle.Size = UDim2.new(1, 0, 1, 0)
+		textboxtitle.Text = props.Name
+		textboxtitle.BackgroundTransparency = 1
+		textboxtitle.TextColor3 = DarkUI.Theme[WindowConfig.Theme].TextColor
+		textboxtitle.Font = Enum.Font.GothamSemibold
+		textboxtitle.Parent = textboxholder
+		textboxtitle.TextSize = 13
+		textboxtitle.TextXAlignment = Enum.TextXAlignment.Left								
+		padding[1]:Clone().Parent = textboxtitle
+		
+		local textbox = Instance.new("TextBox")
+		textbox.Size = UDim2.new(0, 25, 0, 25)
+		textbox.Position = UDim2.new(1, -10, 0.5, 0)
+		textbox.AnchorPoint = Vector2.new(1, 0.5)
+		textbox.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Third
+		textbox.PlaceholderText = "Type"
+        textbox.PlaceholderColor3 = Color3.fromRGB(150,150,150)
+		textbox.TextColor3 = Color3.fromRGB(150,150,150)
+		textbox.BackgroundTransparency = 0
+		textbox.TextXAlignment = Enum.TextXAlignment.Center
+		textbox.Font = Enum.Font.GothamSemibold
+		textbox.TextSize = 13
+		textbox.Parent = textboxholder
+		textbox.ClipsDescendants = true
+		textbox.ClearTextOnFocus = false
+		corner2[1]:Clone().Parent = textbox
+		
+		textbox:GetPropertyChangedSignal("Text"):Connect(function()
+		    task.wait(.8)
+		    local newWidth = math.clamp(textbox.TextBounds.X + 16, 24, 191) 
+		    TweenService:Create(textbox, TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0, newWidth, 0, 24)}):Play()
+		end)
+		
+	    textbox.FocusLost:Connect(function()
+			TweenService:Create(textbox, TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextColor3 = Color3.fromRGB(150,150,150)}):Play()
+	        props.Callback(textbox.Text)
+	        if props.HideText then
+	            textbox.Text = ""
+	        end
+	    end)
+	
+	    textbox.MouseEnter:Connect(function()
+	        TweenService:Create(textbox, TweenInfo.new(0.2), {BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Third, 5)}):Play()
+	    end)
+	
+	    textbox.MouseLeave:Connect(function()
+	        TweenService:Create(textbox, TweenInfo.new(0.2), {BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Third}):Play()
+	    end)
+	
+	    textbox.Focused:Connect(function()
+		    textbox:CaptureFocus()
+		end)
+	
+	    textbox.Focused:Connect(function()
+		    task.wait(.3)
+			TweenService:Create(textbox, TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {TextColor3 = Color3.fromRGB(240,240,240)}):Play()
+		end)
+		
+		textbox.Text = props.DefaultValue
+		return props
+	
+	elseif Type == "Dropdown" then
+	   
+	    local dropdownholder = Instance.new("Frame")
+	    dropdownholder.Size = UDim2.new(1, -4, 0, 50)
+	    dropdownholder.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second
+	    dropdownholder.Active = true
+	    dropdownholder.Parent = Container
+	    corner2[1]:Clone().Parent = dropdownholder
+	
+	    local dropdownmain = Instance.new("Frame")
+	    dropdownmain.Size = UDim2.new(1, 0, 0, 50)
+	    dropdownmain.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second
+	    dropdownmain.Active = true
+	    dropdownmain.BorderSizePixel = 0
+	    dropdownmain.Parent = dropdownholder
+	    corner2[1]:Clone().Parent = dropdownmain
+	
+	    local dropdowntitle = Instance.new("TextButton")
+	    dropdowntitle.Size = UDim2.new(1, 0, 0, 50)
+	    dropdowntitle.Text = props.Name
+	    dropdowntitle.BackgroundTransparency = 1
+	    dropdowntitle.TextColor3 = DarkUI.Theme[WindowConfig.Theme].TextColor
+	    dropdowntitle.Font = Enum.Font.GothamSemibold
+	    dropdowntitle.Parent = dropdownmain
+	    dropdowntitle.TextSize = 13
+	    dropdowntitle.TextXAlignment = Enum.TextXAlignment.Left
+	    dropdowntitle.TextYAlignment = Enum.TextYAlignment.Top
+	
+	    local padding3 = GetUI({"UIPadding"}, {
+	        PaddingTop = UDim.new(0, 6),
+	        PaddingLeft = UDim.new(0, 12)
+	    }, dropdowntitle)
+	
+	    local dropdownline = Instance.new("Frame")
+	    dropdownline.Size = UDim2.new(0, 60, 0, 1)
+	    dropdownline.Position = UDim2.new(0, 0, 0, 18)
+	    dropdownline.BackgroundColor3 = Color3.fromRGB(80,80,80)
+	    dropdownline.Active = true
+	    dropdownline.BackgroundTransparency = 0
+	    dropdownline.Parent = dropdowntitle
+	    corner2[1]:Clone().Parent = dropdownline
+	
+	    local dropdownicon = Instance.new("TextButton")
+	    dropdownicon.Size = UDim2.new(0, 22, 0, 22)
+	    dropdownicon.Position = UDim2.new(1, -27, 0, 5)
+	    dropdownicon.Text = ">"
+	    dropdownicon.Active = false
+	    dropdownicon.Rotation = -90
+	    dropdownicon.BackgroundTransparency = 1
+	    dropdownicon.TextColor3 = DarkUI.Theme[WindowConfig.Theme].TextColor
+	    dropdownicon.Font = Enum.Font.GothamBold
+	    dropdownicon.Parent = dropdownmain
+	    dropdownicon.TextSize = 14
+	
+	    local dropdownselected = Instance.new("TextLabel")
+	    dropdownselected.Size = UDim2.new(0, 4, 0, 20)
+	    dropdownselected.Position = UDim2.new(0, 12, 0, 26)
+	    dropdownselected.AutomaticSize = Enum.AutomaticSize.X
+	    dropdownselected.BackgroundTransparency = 1
+	    dropdownselected.Active = false
+	    dropdownselected.BackgroundColor3 = Color3.fromRGB(40,40,40)
+	    dropdownselected.TextColor3 = Color3.fromRGB(111,111,111)
+	    dropdownselected.Font = Enum.Font.GothamSemibold
+	    dropdownselected.Parent = dropdownmain
+	    dropdownselected.TextXAlignment = Enum.TextXAlignment.Left
+	    dropdownselected.TextSize = 12
+	
+	    local padding5 = GetUI({"UIPadding"}, {
+	        PaddingLeft = UDim.new(0, 2),
+	        PaddingRight = UDim.new(0, 2)
+	    }, dropdownselected)
+	
+	    local dropdownscroll = Instance.new("ScrollingFrame")
+	    dropdownscroll.Size = UDim2.new(1, 0, 1, -50)
+	    dropdownscroll.Position = UDim2.new(0, 0, 0, 50)
+	    dropdownscroll.ScrollBarThickness = 0
+	    dropdownscroll.BorderSizePixel = 0
+	    dropdownscroll.BackgroundTransparency = 1
+	    dropdownscroll.Parent = dropdownholder
+	    local list3 = Instance.new("UIListLayout")
+	    list3.Parent = dropdownscroll
+	local MaxElements = 5
+	    list3:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	        dropdownscroll.CanvasSize = UDim2.new(0, 0, 0, list3.AbsoluteContentSize.Y)
+	    end)
+	
+	    dropdownscroll.Visible = false
+	
+	    if props.DefaultValue then
+			if type(props.DefaultValue) == "string" then
+				props.DefaultValue = {props.DefaultValue}
+			end
+			if not props.MultiChoices and type(props.DefaultValue) == "table" then
+				props.DefaultValue = {props.DefaultValue[1]}
+			end
+		else
+			props.DefaultValue = {}
+		end
+			
+		if props.MultiChoices then
+			if props.DefaultValue and type(props.DefaultValue) == "table" then
+				if #props.DefaultValue == 1 then
+			        dropdownselected.Text = props.DefaultValue[1]
+			    elseif #props.DefaultValue == 0 then
+			        dropdownselected.Text = "None"
+			    else
+			        dropdownselected.Text = table.concat(props.DefaultValue, ", ")
+			    end
+			else
+				props.DefaultValue = {}
+				dropdownselected.Text = "None"
+			end
+		else
+			dropdownselected.Text = props.DefaultValue[1] or "None"
+		end
+	
+	    local function AddOptions()
+	        for _, Option in ipairs(props.Choices) do
+	            local dropdown = Instance.new("Frame") 
+				dropdown.Name = Option
+	            dropdown.Size = UDim2.new(1, 0, 0, 28)
+	            dropdown.BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Second, 8)
+	            dropdown.Parent = dropdownscroll
+	            corner2[1]:Clone().Parent = dropdown
+	
+	            local dropdownselect = Instance.new("TextButton")
+				dropdownselect.Name = "Title"
+	            dropdownselect.Size = UDim2.new(1, 0, 0, 28)
+	            dropdownselect.Text = Option
+	            dropdownselect.BackgroundTransparency = 1
+	            dropdownselect.TextColor3 = Color3.fromRGB(255,255,255)
+	            dropdownselect.Font = Enum.Font.GothamSemibold
+	            dropdownselect.BackgroundColor3 = Color3.fromRGB(111,111,111)
+	            dropdownselect.Parent = dropdown
+	            dropdownselect.TextTransparency = 0.4
+	            dropdownselect.TextSize = 13
+	            dropdownselect.ClipsDescendants = true
+	            dropdownselect.TextXAlignment = Enum.TextXAlignment.Left
+	            dropdownselect.Name = Option
+	            local padding_option = Instance.new("UIPadding")
+	            padding_option.PaddingLeft = UDim.new(0, 10)
+	            padding_option.PaddingRight = UDim.new(0, 4)
+	            padding_option.Parent = dropdownselect
+	
+	            dropdownselect.MouseButton1Click:Connect(function()
+					if not props.MultiChoices and table.find(props.DefaultValue, Option) then
+						return
+					end
+
+					if table.find(props.DefaultValue, Option) then
+						table.remove(props.DefaultValue, table.find(props.DefaultValue, Option))
+						if props.MultiChoices then
+							if #props.DefaultValue == 1 then
+						        dropdownselected.Text = props.DefaultValue[1]
+						    elseif #props.DefaultValue == 0 then
+						        dropdownselected.Text = "None"
+						    else
+						        dropdownselected.Text = table.concat(props.DefaultValue, ", ")
+						    end
+						else
+							dropdownselected.Text = props.DefaultValue[1] -- Corrected: set the Text property
+						end
+					else
+						if not props.MultiChoices then
+							table.clear(props.DefaultValue)
+						end
+						table.insert(props.DefaultValue, Option)
+						if props.MultiChoices then
+							if #props.DefaultValue == 1 then
+						        dropdownselected.Text = props.DefaultValue[1]
+						    elseif #props.DefaultValue == 0 then
+						        dropdownselected.Text = "None"
+						    else
+						        dropdownselected.Text = table.concat(props.DefaultValue, ", ")
+						    end
+						else
+							dropdownselected.Text = props.DefaultValue[1] -- Corrected: set the Text property
+						end
+						for _, option in ipairs(dropdownscroll:GetChildren()) do
+							if option:IsA("Frame") then
+								local isSelected = table.find(props.DefaultValue, option.Name)
+								option.BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Second, isSelected and 16 or 8)
+							end
+						end
+						deb = true
+					end
+
+
+					pcall(function()
+						DropdownSettings.Callback(props.DefaultValue)
+					end)
+
+					for _, droption in ipairs(dropdownscroll:GetChildren()) do
+						if droption:IsA("Frame") and not table.find(props.DefaultValue, droption.Name) then
+							TweenService:Create(droption, TweenInfo.new(0.3, Enum.EasingStyle.Exponential), {BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Second, 8)}):Play()
+						end
+					end
+	                pcall(function()
+						if props.MultiChoices then
+							props.Callback(props.DefaultValue)
+						else
+							props.Callback(props.DefaultValue[1])
+						end
+					end)
+					deb = false
+	                if WindowConfig.ConfigurationSaving and WindowConfig.ConfigurationSaving.Enabled and props.Flag then
+	                    SaveConfiguration()
+	                end
+	            end)			
+	        end
+	    end
+	
+	    AddOptions()
+	
+	    for _, droption in ipairs(dropdownscroll:GetChildren()) do
+			if droption:IsA("Frame") then
+				if not table.find(props.DefaultValue, droption.Name) then
+					TweenService:Create(droption, TweenInfo.new(0.3, Enum.EasingStyle.Exponential), {BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Second, 8)}):Play()
+				else
+					TweenService:Create(droption, TweenInfo.new(0.3, Enum.EasingStyle.Exponential), {BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Second, 16)}):Play()
+				end
+			end
+		end
+	
+	   function props:Refresh(optionsTable: table)
+			props.Choices = optionsTable
+			
+			for _, option in dropdownscroll:GetChildren() do
+				if option:IsA("Frame") then
+					option:Destroy()
+				end
+			end
+		
+			AddOptions()
+		
+			for _, droption in ipairs(dropdownscroll:GetChildren()) do
+				if droption:IsA("Frame") then
+					if not table.find(props.DefaultValue, droption.Name) then
+						TweenService:Create(droption, TweenInfo.new(0.3, Enum.EasingStyle.Exponential), {BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Second, 8)}):Play()
+					else
+						TweenService:Create(droption, TweenInfo.new(0.3, Enum.EasingStyle.Exponential), {BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Second, 16)}):Play()
+					end
+				end
+			end
+			
+			if dropdownscroll.Visible then
+				if dropdownholder.Size.Y.Offset <= 50 then return end		
+				task.wait(.6)
+				if #props.Choices > MaxElements then
+					TweenService:Create(dropdownholder, TweenInfo.new(.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -4, 0, 50 + (MaxElements * 28))}):Play()
+				else
+					TweenService:Create(dropdownholder, TweenInfo.new(.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1, -4, 0, list3.AbsoluteContentSize.Y + 50)}):Play()
+				end
+			end
+		end
+	
+	    function props:Set(NewOption)
+			props.DefaultValue = NewOption
+
+			if typeof(props.DefaultValue) == "string" then
+				props.DefaultValue = {props.DefaultValue}
+			end
+
+			if not props.MultiChoices then
+				props.DefaultValue = {props.DefaultValue[1]}
+			end
+
+			if props.MultiChoices then
+			    if #props.DefaultValue == 1 then
+			        dropdownselected.Text = props.DefaultValue[1]
+			    elseif #props.DefaultValue == 0 then
+			        dropdownselected.Text = "None"
+			    else
+			        dropdownselected.Text = table.concat(props.DefaultValue, ", ")
+			    end
+			else
+				dropdownselected.Text = props.DefaultValue[1]
+		    end
+			pcall(function()
+				DropdownSettings.Callback(NewOption)
+			end)
+			for _, droption in ipairs(dropdownscroll:GetChildren()) do
+				if droption:IsA("Frame") then
+					if not table.find(props.DefaultValue, droption.Name) then
+						TweenService:Create(droption, TweenInfo.new(0.3, Enum.EasingStyle.Exponential), {BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Second, 8)}):Play()
+					else
+						TweenService:Create(droption, TweenInfo.new(0.3, Enum.EasingStyle.Exponential), {BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Second, 16)}):Play()
+					end
+				end
+			end
+		end
+	
+	    dropdowntitle.MouseEnter:Connect(function()
+	        TweenService:Create(dropdownholder, TweenInfo.new(0.2), {BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Second, 5)}):Play()
+	    end)
+	
+	    dropdowntitle.MouseLeave:Connect(function()
+	        TweenService:Create(dropdownholder, TweenInfo.new(0.2), {BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second}):Play()
+	    end)
+	
+		dropdownicon.Rotation = -90
+
+	    dropdowntitle.MouseButton1Click:Connect(function()
+			TweenService:Create(dropdownholder, TweenInfo.new(0.2), {BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Second, 5)}):Play()
+			task.wait(0.1)
+			TweenService:Create(dropdownholder, TweenInfo.new(0.2), {BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second}):Play()
+			if dropdownscroll.Visible then
+				TweenService:Create(dropdownholder, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {Size = UDim2.new(1, -4, 0, 50)}):Play()
+				for _, DropdownOpt in ipairs(dropdownscroll:GetChildren()) do
+					if DropdownOpt:IsA("Frame") then
+						local title = DropdownOpt:FindFirstChild("Title")
+						if title and title:IsA("TextButton") then -- Add checks for existence and type
+							TweenService:Create(DropdownOpt, TweenInfo.new(0.3, Enum.EasingStyle.Exponential), {BackgroundTransparency = 1}):Play()
+							TweenService:Create(title, TweenInfo.new(0.3, Enum.EasingStyle.Exponential), {TextTransparency = 1}):Play()
+						end
+					end
+				end
+				TweenService:Create(dropdownicon, TweenInfo.new(0.7, Enum.EasingStyle.Exponential), {Rotation = -90}):Play()
+				task.wait(0.35)
+				dropdownscroll.Visible = false
+			else
+				if #props.Choices > MaxElements then
+		            TweenService:Create(dropdownholder,TweenInfo.new(.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),{Size = UDim2.new(1, -4, 0, 50 + (MaxElements * 28))}):Play()
+		        else
+		            TweenService:Create(dropdownholder,TweenInfo.new(.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),{Size = UDim2.new(1, -4, 0, list3.AbsoluteContentSize.Y + 50)}):Play()
+		        end
+				dropdownscroll.Visible = true
+				TweenService:Create(dropdownicon, TweenInfo.new(0.7, Enum.EasingStyle.Exponential), {Rotation = 90}):Play()
+				for _, DropdownOpt in ipairs(dropdownscroll:GetChildren()) do
+					if DropdownOpt:IsA("Frame") then
+						local title = DropdownOpt:FindFirstChild("Title")
+						if title and title:IsA("TextButton") then -- Add checks for existence and type
+							TweenService:Create(DropdownOpt, TweenInfo.new(0.3, Enum.EasingStyle.Exponential), {BackgroundTransparency = 0}):Play()
+							TweenService:Create(title, TweenInfo.new(0.3, Enum.EasingStyle.Exponential), {TextTransparency = 0}):Play()
+						end
+					end
+				end
+			end
+	    end)			
+
+	
+	    if WindowConfig.ConfigurationSaving then
+	        if WindowConfig.ConfigurationSaving.Enabled and props.Flag then
+	            DarkUI.Flags[props.Flag] = props
+	        end
+	    end
+	
+	    return props
+	
+	elseif Type == "Slider" then
+	    
+	    local sliderholder = Instance.new("Frame")
+		sliderholder.Size = UDim2.new(1, -4, 0, 34)
+		sliderholder.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second
+		sliderholder.Active = true
+		sliderholder.BackgroundTransparency = 0
+		sliderholder.Parent = Container
+		corner2[1]:Clone().Parent = sliderholder
+		
+		local slidertitle = Instance.new("TextLabel")
+		slidertitle.Size = UDim2.new(1, 0, 1, 0)
+		slidertitle.Position = UDim2.new(0, 0, 0, 0)
+		slidertitle.Text = props.Name
+		slidertitle.BackgroundTransparency = 1
+		slidertitle.TextColor3 = DarkUI.Theme[WindowConfig.Theme].TextColor
+		slidertitle.Font = Enum.Font.GothamSemibold
+		slidertitle.Parent = sliderholder
+		slidertitle.TextSize = 13
+		slidertitle.TextXAlignment = Enum.TextXAlignment.Left
+		padding[1]:Clone().Parent = slidertitle
+	
+	    local slider = Instance.new("ImageButton")
+	    slider.Size = UDim2.new(0, 150, 0, 24)
+	    slider.Position = UDim2.new(1, -160, 0, 6)
+	    slider.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Third
+	    slider.BorderSizePixel = 0
+	    slider.Parent = sliderholder
+		corner2[1]:Clone().Parent = slider
+	
+	    local progress = Instance.new("Frame")
+	    progress.Size = UDim2.new(0, slider.AbsoluteSize.X * ((props.DefaultValue + props.Range[1]) / (props.Range[2] - props.Range[1])) > 5 and slider.AbsoluteSize.X * (props.DefaultValue / (props.Range[2] - props.Range[1])) or 5, 1, 0)
+	    progress.BackgroundColor3 = AddColour(DarkUI.Theme[WindowConfig.Theme].Second, 30)
+	    progress.Active = false
+	    progress.BorderSizePixel = 0
+	    progress.Parent = slider
+		corner2[1]:Clone().Parent = progress
+	
+	    local value = Instance.new("TextLabel")
+	    value.Size = UDim2.new(1, 0, 1, 0)
+	    value.Position = UDim2.new(0, 0, 0, 0)
+	    value.BackgroundColor3 = Color3.fromRGB(46,46,46)
+	    value.BackgroundTransparency = 1
+	    value.TextColor3 = Color3.fromRGB(255, 255, 255)
+	    value.Font = Enum.Font.GothamBold
+	    value.TextSize = 12
+	    value.Text = tostring(props.DefaultValue)
+	    value.Parent = slider 
+		value.TextXAlignment = Enum.TextXAlignment.Left
+	    corner2[1]:Clone().Parent = value
+		padding[1]:Clone().Parent = value
+	
+	    local Dragging = false
+	    slider.InputBegan:Connect(function(input)
+	        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+	            Dragging = true
+	        end
+	    end)
+
+	    slider.InputEnded:Connect(function(input)
+		    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		        Dragging = false
+		        TweenService:Create(value, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Rotation = 0}):Play()
+		    end
+		end)
+		
+		slider.MouseButton1Down:Connect(function(X)
+			local Current = progress.AbsolutePosition.X + progress.AbsoluteSize.X
+			local Start = Current
+			local Location = X
+			local Loop; Loop = RunService.Stepped:Connect(function()
+				if Dragging then
+					Location = UserInputService:GetMouseLocation().X
+					Current = Current + 0.025 * (Location - Start)
+		
+					if Location < slider.AbsolutePosition.X then
+						Location = slider.AbsolutePosition.X
+					elseif Location > slider.AbsolutePosition.X + slider.AbsoluteSize.X then
+						Location = slider.AbsolutePosition.X + slider.AbsoluteSize.X
+					end
+		
+					if Current < slider.AbsolutePosition.X + 5 then
+						Current = slider.AbsolutePosition.X + 5
+					elseif Current > slider.AbsolutePosition.X + slider.AbsoluteSize.X then
+						Current = slider.AbsolutePosition.X + slider.AbsoluteSize.X
+					end
+		
+					if Current <= Location and (Location - Start) < 0 then
+						Start = Location
+					elseif Current >= Location and (Location - Start) > 0 then
+						Start = Location
+					end
+		
+					TweenService:Create(progress, TweenInfo.new(0.45, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = UDim2.new(0, Current - slider.AbsolutePosition.X, 1, 0)}):Play()
+					local NewValue = props.Range[1] + (Location - slider.AbsolutePosition.X) / slider.AbsoluteSize.X * (props.Range[2] - props.Range[1])
+		
+					NewValue = math.floor(NewValue / props.Increment + 0.5) * (props.Increment * 10000000) / 10000000
+					NewValue = math.clamp(NewValue, props.Range[1], props.Range[2])
+		
+					if props.DefaultValue ~= NewValue then
+						value.Text = tostring(NewValue)
+						pcall(function()
+							props.Callback(NewValue)
+						end)
+						props.DefaultValue = NewValue
+						SaveConfiguration()
+					end
+				else
+					TweenService:Create(progress, TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = UDim2.new(0, (Location - slider.AbsolutePosition.X > 5) and (Location - slider.AbsolutePosition.X) or 5, 1, 0)}):Play()
+					Loop:Disconnect()
+				end
+			end)
+		end)
+	
+		function props:Set(NewVal)
+			local targetVal = math.clamp(math.floor(NewVal / props.Increment + 0.5) * props.Increment, props.Range[1], props.Range[2])
+			local percent = (targetVal - props.Range[1]) / (props.Range[2] - props.Range[1])
+			
+			TweenService:Create(progress, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(percent, 0, 1, 0)}):Play()
+		
+			local currentVal = tonumber(value.Text) or props.DefaultValue or 0
+			local animationTime = 0.3
+			local startTime = tick()
+		
+			local function update()
+				local elapsed = tick() - startTime
+				local alpha = math.clamp(elapsed / animationTime, 0, 1)
+				local interpolated = currentVal + (targetVal - currentVal) * alpha
+				value.Text = tostring(math.floor(interpolated + 0.5))
+				return alpha < 1
+			end
+		
+			local conn
+			conn = RunService.RenderStepped:Connect(function()
+				if not update() then
+					value.Text = tostring(targetVal)
+					conn:Disconnect()
+				end
+			end)
+
+			pcall(function()
+				props.Callback(targetVal)
+			end)
+			props.DefaultValue = targetVal
+			SaveConfiguration()
+		end
+	
+		if WindowConfig.ConfigurationSaving then
+			if WindowConfig.ConfigurationSaving.Enabled and props.Flag then
+				DarkUI.Flags[props.Flag] = props
+			end
+		end
+	
+	    return props
+	
+	elseif Type == "ColorPicker" then
+	    props.Type = "ColorPicker"
+	
+	    local Toggled = false
+		local h, s, v = props.Color:ToHSV()
+	
+	    local colorpickholder = Instance.new("Frame")
+	    colorpickholder.Size = UDim2.new(1, -4, 0, 36)
+	    colorpickholder.BackgroundColor3 = DarkUI.Theme[WindowConfig.Theme].Second
+	    colorpickholder.BorderSizePixel = 0
+	    colorpickholder.Parent = Container
+	    corner2[1]:Clone().Parent = colorpickholder
+	
+	    local colerpicktitle = Instance.new("TextButton")
+	    colerpicktitle.Size = UDim2.new(1, 0, 0, 36)
+	    colerpicktitle.Text = props.Name
+	    colerpicktitle.BackgroundTransparency = 1
+	    colerpicktitle.TextColor3 = DarkUI.Theme[WindowConfig.Theme].TextColor
+	    colerpicktitle.Font = Enum.Font.GothamSemibold
+	    colerpicktitle.TextXAlignment = Enum.TextXAlignment.Left
+	    colerpicktitle.Parent = colorpickholder
+	    padding[1]:Clone().Parent = colerpicktitle
+	    colerpicktitle.TextSize = 13
+	
+	    local colorselected = Instance.new("ImageLabel")
+	    colorselected.Size = UDim2.new(0, 25, 0, 25)
+	    colorselected.Position = UDim2.new(1, -35, 0, 6)
+	    colorselected.BackgroundColor3 = props.Color
+	    colorselected.Parent = colerpicktitle
+	    local colorselectedcorner = Instance.new("UICorner", colorselected)
+	    colorselectedcorner.CornerRadius = UDim.new(0, 3)
+	
+		local HueColorHolder = Instance.new("ScrollingFrame")
+	    HueColorHolder.Size = UDim2.new(1, 0, 1, 0)
+	    HueColorHolder.Position = UDim2.new(0, 0, 0, 0)
+	    HueColorHolder.Parent = colorpickholder
+	    HueColorHolder.BackgroundTransparency = 1
+		HueColorHolder.ScrollingEnabled = false
+		HueColorHolder.Active = true
+	    HueColorHolder.ScrollBarThickness = 0
+	
+	    local Color = Instance.new("ImageButton")
+	    Color.Size = UDim2.new(0, 0, 0, 100)
+		Color.AnchorPoint = Vector2.new(1, 0.5)
+		Color.Position = UDim2.new(0.86, 0, 0.234, 0)
+	    Color.Image = "rbxassetid://4155801252"
+		Color.BackgroundTransparency = 1
+		Color.ImageTransparency = 1
+	    Color.Active = false
+	    Color.Parent = HueColorHolder
+	 			   corner2[1]:Clone().Parent = Color
+	
+	    local Hue = Instance.new("ImageButton")
+	    Hue.Size = UDim2.new(0, 25, 0, 25)
+	    Hue.Position = UDim2.new(1, -35, 0, 6)
+	    Hue.Active = true
+		Hue.BackgroundTransparency = 1
+	    Hue.Parent = HueColorHolder
+	 			   corner2[1]:Clone().Parent = Hue
+	
+	    local HueGradient = Instance.new("UIGradient")
+	    HueGradient.Rotation = 260
+	    HueGradient.Color = ColorSequence.new{
+	        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 0, 4)),
+	        ColorSequenceKeypoint.new(0.20, Color3.fromRGB(234, 255, 0)),
+	        ColorSequenceKeypoint.new(0.40, Color3.fromRGB(21, 255, 0)),
+	        ColorSequenceKeypoint.new(0.60, Color3.fromRGB(0, 255, 255)),
+	        ColorSequenceKeypoint.new(0.80, Color3.fromRGB(0, 17, 255)),
+	        ColorSequenceKeypoint.new(0.90, Color3.fromRGB(255, 0, 251)),
+	        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 0, 4))
+	    }
+	    HueGradient.Parent = Hue
+	
+		local ColorSelection = Instance.new("ImageButton")
+		ColorSelection.Size = UDim2.new(0, 10, 0, 10)
+		ColorSelection.Position = UDim2.new(s, 0, 1 - v, 0)
+		ColorSelection.BackgroundTransparency = 1
+		ColorSelection.ImageTransparency = 1
+		ColorSelection.Image = "http://www.roblox.com/asset/?id=13007563717"
+		ColorSelection.Parent = Color
+		
+		local HueSelection = Instance.new("ImageButton")
+		HueSelection.Size = UDim2.new(0, 10, 0, 10)
+		HueSelection.Position = UDim2.new(0.5, 0, h, 0) -- Fixed position
+		HueSelection.BackgroundTransparency = 1
+		HueSelection.ImageTransparency = 1
+		HueSelection.Image = "http://www.roblox.com/asset/?id=13007563717"
+		HueSelection.Parent = Hue
+		
+		local mainDragging = false
+		local sliderDragging = false
+		
+		UserInputService.InputEnded:Connect(function(input, gameProcessed)
+		    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		        mainDragging = false
+		        sliderDragging = false
+		    end
+		end)
+		
+		Color.MouseButton1Down:Connect(function()
+		    if Toggled then
+		        mainDragging = true
+		    end
+		end)
+		
+		ColorSelection.MouseButton1Down:Connect(function()
+		    if Toggled then
+		        mainDragging = true
+		    end
+		end)
+		
+		Hue.MouseButton1Down:Connect(function()
+		    sliderDragging = true
+		end)
+		
+		HueSelection.MouseButton1Down:Connect(function()
+		    sliderDragging = true
+		end)
+		
+		local color = Color3.fromHSV(h, s, v)
+		
+		local function setcolorselected()
+		    ColorSelection.Position = UDim2.new(s, -ColorSelection.AbsoluteSize.X / 2, 1 - v, -ColorSelection.AbsoluteSize.Y / 2)
+		    Color.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
+		    colorselected.BackgroundColor3 = Color3.fromHSV(h, s, v)
+		    local y = h * Hue.AbsoluteSize.Y
+		    HueSelection.Position = UDim2.new(0, 0.5, 0, y - HueSelection.AbsoluteSize.Y / 2)
+		end
+		
+		setcolorselected()
+		
+		UserInputService.InputChanged:Connect(function(input)
+			if mainDragging or sliderDragging then
+				if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+					local inputPos = input.Position
+		
+					if mainDragging then
+						local offsetX = inputPos.X - Color.AbsolutePosition.X
+						local offsetY = inputPos.Y - Color.AbsolutePosition.Y
+		
+						local s_new = math.clamp(offsetX / Color.AbsoluteSize.X, 0, 1)
+						local v_new = math.clamp(offsetY / Color.AbsoluteSize.Y, 0, 1)
+		
+						s = s_new
+						v = 1 - v_new
+		
+						local posX = math.clamp(offsetX - ColorSelection.AbsoluteSize.X / 2, 0, Color.AbsoluteSize.X - ColorSelection.AbsoluteSize.X)
+						local posY = math.clamp(offsetY - ColorSelection.AbsoluteSize.Y / 2, 0, Color.AbsoluteSize.Y - ColorSelection.AbsoluteSize.Y)
+		
+						ColorSelection.Position = UDim2.new(0, posX, 0, posY)
+						local color = Color3.fromHSV(h, s, v)
+						Color.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
+						colorselected.BackgroundColor3 = color
+		
+						props.Color = Color3.fromRGB(math.floor(color.R * 255 + 0.5), math.floor(color.G * 255 + 0.5), math.floor(color.B * 255 + 0.5))
+						pcall(function() props.Callback(color) end)
+		
+						if WindowConfig and WindowConfig.ConfigurationSaving and WindowConfig.ConfigurationSaving.Enabled and props.Flag then
+							SaveConfiguration()
+						end
+					end
+		
+					if sliderDragging then
+						local h_new = math.clamp((inputPos.Y - Hue.AbsolutePosition.Y) / Hue.AbsoluteSize.Y, 0, 1)
+						h = 1 - h_new
+						local color = Color3.fromHSV(h, s, v)
+						local r, g, b = math.floor(color.R * 255 + 0.5), math.floor(color.G * 255 + 0.5), math.floor(color.B * 255 + 0.5)
+		
+						HueSelection.Position = UDim2.new(0.5, -HueSelection.AbsoluteSize.X / 2, 0, math.clamp(h_new * Hue.AbsoluteSize.Y, 0, Hue.AbsoluteSize.Y - HueSelection.AbsoluteSize.Y))
+						Color.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
+						colorselected.BackgroundColor3 = color
+		
+						props.Color = Color3.fromRGB(r, g, b)
+						pcall(function() props.Callback(color) end)
+		
+						if WindowConfig and WindowConfig.ConfigurationSaving and WindowConfig.ConfigurationSaving.Enabled and props.Flag then
+							SaveConfiguration()
+						end
+					end
+				end
+			end
+		end)
+		
+		colerpicktitle.MouseButton1Click:Connect(function()
+			Toggled = not Toggled
+	        if Toggled then
+					TweenService:Create(colorpickholder, TweenInfo.new(.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.new(1, -4, 0, 120)}):Play()
+					task.wait(.1)
+					TweenService:Create(colorselected, TweenInfo.new(.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 1}):Play()
+					TweenService:Create(Hue, TweenInfo.new(.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.new(0, 25, 0, 100)}):Play()
+					TweenService:Create(Hue, TweenInfo.new(.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 0}):Play()
+					TweenService:Create(HueSelection, TweenInfo.new(0.2, Enum.EasingStyle.Exponential), {ImageTransparency = 0}):Play()
+					task.wait(.25)
+					TweenService:Create(Color, TweenInfo.new(0.2, Enum.EasingStyle.Exponential), {BackgroundTransparency = 0}):Play()
+					TweenService:Create(Color, TweenInfo.new(0.2, Enum.EasingStyle.Exponential), {ImageTransparency= 0}):Play()
+					TweenService:Create(Color, TweenInfo.new(.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.new(0, 130, 0, 100)}):Play()
+					TweenService:Create(ColorSelection, TweenInfo.new(0.2, Enum.EasingStyle.Exponential), {ImageTransparency = 0}):Play()
+					TweenService:Create(Hue, TweenInfo.new(0.2, Enum.EasingStyle.Exponential), {ImageTransparency = 0}):Play()
+					Color.Active = true
+				else
+					Color.Active = false
+					task.wait(.11)
+					TweenService:Create(Hue, TweenInfo.new(0.2, Enum.EasingStyle.Exponential), {ImageTransparency = 1}):Play()
+					TweenService:Create(ColorSelection, TweenInfo.new(0.2, Enum.EasingStyle.Exponential), {ImageTransparency = 1}):Play()
+					TweenService:Create(Color, TweenInfo.new(.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.new(0, 0, 0, 100)}):Play()
+					TweenService:Create(Color, TweenInfo.new(0.2, Enum.EasingStyle.Exponential), {ImageTransparency = 1}):Play()
+					TweenService:Create(Color, TweenInfo.new(0.2, Enum.EasingStyle.Exponential), {BackgroundTransparency = 1}):Play()
+					task.wait(.25)
+					TweenService:Create(HueSelection, TweenInfo.new(0.2, Enum.EasingStyle.Exponential), {ImageTransparency = 1}):Play()
+					TweenService:Create(Hue, TweenInfo.new(.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 1}):Play()
+					TweenService:Create(Hue, TweenInfo.new(.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.new(0, 25, 0, 25)}):Play()
+					TweenService:Create(colorselected, TweenInfo.new(.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 0}):Play()
+					task.wait(.1)
+					TweenService:Create(colorpickholder, TweenInfo.new(.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.new(1, -4, 0, 36)}):Play()
+				end
+		    end)
+		
+			function props:Set(RGBColor)
+				props.Color = RGBColor
+				h, s, v = props.Color:ToHSV() -- ADDED THIS LINE
+				color = Color3.fromHSV(h, s, v)
+				setcolorselected()
+			end
+		
+		    if WindowConfig.ConfigurationSaving then
+		        if WindowConfig.ConfigurationSaving.Enabled and props.Flag then
+		            DarkUI.Flags[props.Flag] = props
+		        end
+		    end			
+		    return prop
+		end
+		end
+		
+		function ElementsFunctions:CreateSection(Name)
+			local section = Instance.new("Frame")
+			section.Size = UDim2.new(1, 0, 0, 20)
+			section.Position = UDim2.new(0, 10, 0, 10)
+			section.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			section.BorderColor3 = Color3.fromRGB(0, 0, 0)
+			section.BorderSizePixel = 1
+			section.Active = false
+			section.BackgroundTransparency = 1
+			section.Parent = Container
+			
+			local sectiontitle = Instance.new("TextLabel")
+			sectiontitle.Size = UDim2.new(1, 0, 1, 0)
+			sectiontitle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			sectiontitle.Text = Name
+			sectiontitle.BackgroundTransparency = 1
+			sectiontitle.TextColor3 = DarkUI.Theme[WindowConfig.Theme].TextColor
+			sectiontitle.Font = Enum.Font.GothamBold
+			sectiontitle.Parent = section
+			sectiontitle.TextSize = 14
+			sectiontitle.TextXAlignment = Enum.TextXAlignment.Left
+			
+			local padding4 = GetUI({"UIPadding"}, {
+			    PaddingLeft = UDim.new(0, 3),
+				PaddingTop = UDim.new(0, 3)
+			}, sectiontitle)
+		end
+		return ElementsFunctions
+	end
+	return WindowFunctions
+end 
+
+function DarkUI:Destroy()
+	gui:Destroy()
+end
+
+local Window = DarkUI:CreateLibrary({
+	Name = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name,
+	Theme = "Dark",
+	Transparency = 0,
+	LoadingConfiguration = {
+		Title = "Grow A Garden",
+		Author = "Mark",
+		Watermark = true
+	},
+	ConfigurationSaving = {
+		Enabled = true,
+		FolderName = nil,
+		FileName = "test"
+	},
+	KeySystem = false,
+	KeySettings = {
+		Title = "Key System",
+		Author = "Click 'Get Key' to get the key",
+		FileName = "CoolAssKey",
+		SaveKey = true,
+		Key = {"Aheueiiwjwjdjdjwsjjdmhehehe"},
+		GetKeyFrom = {
+			Linkvertise = "https://direct-link.net/1199619/grow-a-garden-key",
+			LootLab = "https://loot-link.com/s?9w3X1Hhp"
+		}
+	},
+	CanDrag = true
+})
+
+local Auto = Window:CreateTab("Auto")
+
+Auto:AddElement({
+    Name = "Grah",
+    Color = Color3.fromRGB(255, 255, 255),
+    Flag = "ColorPicker",
+    Callback = function(state)
+        print("GodMode:", state)
+    end,
+}, "ColorPicker")
+
+Auto:AddElement({
+    Name = "GodMode",
+    DefaultValue = false,
+    Flag = "god_toggle",
+    Callback = function(state)
+        print("GodMode:", state)
+    end,
+}, "Toggle")
+
+Auto:AddElement({
+	Name = "Input",
+	DefaultValue = "",
+	HideText = false,
+	Callback = function(v)
+		print("yes")
+	end
+}, "Input")
+
+Auto:AddElement({
+    Name = "h",
+    Callback = function(state)
+        DarkUI:LoadConfiguration()
+    end,
+}, "Button")
+
+return DarkUI
